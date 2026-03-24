@@ -15,7 +15,43 @@ const router = express.Router();
 
 router.use(protect);
 
+/**
+ * @swagger
+ * /api/boards/project/{projectId}:
+ *   get:
+ *     summary: Obtener tableros de un proyecto
+ *     tags: [Boards]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Lista de tableros
+ */
 router.get('/project/:projectId', validate({ params: validateProjectIdParam }), controller.getByProject);
+/**
+ * @swagger
+ * /api/boards/project/{projectId}:
+ *   post:
+ *     summary: Crear tablero en proyecto
+ *     tags: [Boards]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       201:
+ *         description: Tablero creado
+ */
 router.post('/project/:projectId', validate({ params: validateProjectIdParam, body: validateBoardCreate }), controller.create);
 router.post('/:boardId/columns', validate({ params: validateColumnParams, body: validateCreateColumn }), controller.createColumn);
 router.patch('/:boardId/columns/reorder', validate({ params: validateColumnParams, body: validateReorderColumns }), controller.reorder);
