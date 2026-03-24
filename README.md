@@ -32,11 +32,17 @@ Este proyecto hace parte del caso de estudio TaskFlow para la asignatura de Patr
 ## Estructura actual
 
 ```text
+app.js
+builders/
 config/
 controllers/
+factories/
+middlewares/
 models/
 routes/
+services/
 server.js
+utils/
 ```
 
 ## Requisitos
@@ -44,6 +50,7 @@ server.js
 - Node.js 20 o superior
 - npm
 - MongoDB Atlas o una instancia de MongoDB disponible
+- Docker Desktop opcional para ejecucion en contenedores
 
 ## Variables de entorno
 
@@ -75,23 +82,211 @@ Modo desarrollo:
 npx nodemon server.js
 ```
 
+## Ejecucion con Docker
+
+Construir y levantar backend + MongoDB local:
+
+```bash
+docker compose up --build
+```
+
+Detener contenedores:
+
+```bash
+docker compose down
+```
+
+La API quedara disponible en:
+
+```text
+http://localhost:3000
+```
+
+Con Docker se cargan datos demo automaticamente para pruebas.
+
+Usuarios semilla:
+
+- `admin.demo@taskflow.local` / `TaskFlow123`
+- `pm.demo@taskflow.local` / `TaskFlow123`
+- `dev.demo@taskflow.local` / `TaskFlow123`
+
+Datos semilla:
+
+- proyecto demo con miembros
+- tablero Kanban por defecto
+- tareas de ejemplo con labels, subtareas, comentarios e historial
+
+## MVP implementado
+
+- Registro y login con JWT
+- Perfil de usuario y logout
+- Roles base: `ADMIN`, `PROJECT_MANAGER`, `DEVELOPER`
+- Creacion de proyectos con tablero Kanban por defecto
+- Invitacion de miembros por correo
+- Archivado y clonado de proyectos
+- Gestion de tableros y columnas con limite WIP
+- Creacion, edicion, movimiento y clonado de tareas
+- Historial basico de tareas
+- Comentarios y registro de tiempo en tareas
+
 ## Endpoints base
 
+Auth:
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+- `PATCH /api/auth/me`
+
+Users:
 - `GET /api/users`
-- `POST /api/users`
+- `PATCH /api/users/:id/deactivate`
+
+Projects:
 - `GET /api/projects`
 - `POST /api/projects`
-- `GET /api/tasks`
-- `POST /api/tasks`
-- `GET /api/boards/:projectId`
-- `POST /api/boards`
+- `GET /api/projects/:id`
+- `PATCH /api/projects/:id`
+- `DELETE /api/projects/:id`
+- `POST /api/projects/:id/members`
+- `POST /api/projects/:id/archive`
+- `POST /api/projects/:id/clone`
 
-## Buenas practicas aplicadas o pendientes
+Boards:
+- `GET /api/boards/project/:projectId`
+- `POST /api/boards/project/:projectId`
+- `POST /api/boards/:boardId/columns`
+- `PATCH /api/boards/:boardId/columns/reorder`
+- `PATCH /api/boards/:boardId/columns/:columnId`
+- `DELETE /api/boards/:boardId/columns/:columnId`
+
+Tasks:
+- `GET /api/tasks?projectId=<id>`
+- `POST /api/tasks`
+- `GET /api/tasks/:id`
+- `PATCH /api/tasks/:id`
+- `POST /api/tasks/:id/move`
+- `POST /api/tasks/:id/clone`
+- `POST /api/tasks/:id/comments`
+- `PATCH /api/tasks/:id/comments/:commentId`
+- `DELETE /api/tasks/:id/comments/:commentId`
+- `POST /api/tasks/:id/time-logs`
+
+## Guia de pruebas
+
+Base URL:
+
+```text
+http://localhost:3000/api
+```
+
+Flujo recomendado para Postman:
+
+1. Health check
+
+```http
+GET /api/health
+```
+
+2. Registrar usuario
+
+```json
+POST /api/auth/register
+{
+  "fullName": "Sebas Test",
+  "email": "sebas@test.com",
+  "password": "TaskFlow123"
+}
+```
+
+3. Iniciar sesion y copiar el `token`
+
+```json
+POST /api/auth/login
+{
+  "email": "sebas@test.com",
+  "password": "TaskFlow123"
+}
+```
+
+4. Crear proyecto con header `Authorization: Bearer <token>`
+
+```json
+POST /api/projects
+{
+  "name": "Proyecto MVP",
+  "description": "Proyecto de prueba",
+  "startDate": "2026-03-24T12:00:00.000Z"
+}
+```
+
+5. Consultar tablero por defecto
+
+```http
+GET /api/boards/project/:projectId
+```
+
+6. Crear tarea en la columna `Por hacer`
+
+```json
+POST /api/tasks
+{
+  "title": "Corregir login",
+  "description": "Validar el flujo JWT",
+  "type": "BUG",
+  "project": "<projectId>",
+  "board": "<boardId>",
+  "columnId": "<columnId>"
+}
+```
+
+7. Mover tarea de columna
+
+```json
+POST /api/tasks/:taskId/move
+{
+  "toColumnId": "<targetColumnId>"
+}
+```
+
+8. Comentar tarea
+
+```json
+POST /api/tasks/:taskId/comments
+{
+  "content": "Comentario de prueba"
+}
+```
+
+9. Clonar tarea o proyecto
+
+```http
+POST /api/tasks/:taskId/clone
+POST /api/projects/:projectId/clone
+```
+
+10. Archivar proyecto y verificar modo solo lectura
+
+```http
+POST /api/projects/:projectId/archive
+```
+
+## Buenas practicas aplicadas
 
 - Uso de variables de entorno
-- Separacion inicial por capas (`routes`, `controllers`, `models`)
-- Pendiente fortalecer validaciones, middlewares, servicios y pruebas
-- Pendiente dockerizacion y documentacion ampliada de API
+- Separacion por capas: `routes`, `controllers`, `services`, `models`
+- Manejo centralizado de errores y middleware de autenticacion
+- Validaciones basicas por endpoint para el MVP
+- Patrones visibles para la entrega: `Singleton`, `Factory Method`, `Prototype`, `Builder`
+- Dockerfile, `.dockerignore` y `docker-compose.yml`
+
+## Pendientes del sistema
+
+- Adjuntos de archivos
+- Notificaciones en tiempo real y por correo
+- Reportes y dashboard
+- Filtros guardados
+- Auditoria completa y undo
 
 ## Estado del repositorio
 

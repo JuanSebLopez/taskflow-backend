@@ -1,0 +1,58 @@
+const { isNonEmptyString, isValidEmail, collectRequiredString } = require('./common.validator');
+
+function validateRegister(body) {
+    const errors = [];
+    const fullNameError = collectRequiredString(body, 'fullName', 'fullName');
+
+    if (fullNameError) {
+        errors.push(fullNameError);
+    }
+
+    if (!isValidEmail(body.email)) {
+        errors.push('email must be valid');
+    }
+
+    if (!isNonEmptyString(body.password) || body.password.length < 6) {
+        errors.push('password must be at least 6 characters');
+    }
+
+    return errors;
+}
+
+function validateLogin(body) {
+    const errors = [];
+
+    if (!isValidEmail(body.email)) {
+        errors.push('email must be valid');
+    }
+
+    if (!isNonEmptyString(body.password)) {
+        errors.push('password is required');
+    }
+
+    return errors;
+}
+
+function validateProfileUpdate(body) {
+    const errors = [];
+
+    if (body.fullName !== undefined && !isNonEmptyString(body.fullName)) {
+        errors.push('fullName cannot be empty');
+    }
+
+    if (body.avatarUrl !== undefined && typeof body.avatarUrl !== 'string') {
+        errors.push('avatarUrl must be a string');
+    }
+
+    if (body.bio !== undefined && typeof body.bio !== 'string') {
+        errors.push('bio must be a string');
+    }
+
+    return errors;
+}
+
+module.exports = {
+    validateRegister,
+    validateLogin,
+    validateProfileUpdate
+};

@@ -1,19 +1,21 @@
+const catchAsync = require('../utils/catch-async');
 const User = require('../models/user');
+const { deactivateUser } = require('../services/user.service');
 
-const getAll = async (req, res) => {
-    try {
-        const users = await User.find().select('-password');
-        res.json(users);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+const listUsers = catchAsync(async (req, res) => {
+    const users = await User.find().sort({ createdAt: -1 });
+    res.json(users.map((user) => user.toSafeObject()));
+});
+
+const deactivate = catchAsync(async (req, res) => {
+    const user = await deactivateUser(req.params.id);
+    res.json({
+        message: 'User deactivated successfully',
+        user: user.toSafeObject()
+    });
+});
+
+module.exports = {
+    listUsers,
+    deactivate
 };
-
-const create = async (req, res) => {
-    try {
-        const nuevoUsuario = new User(req.body);
-        await nuevoUsuario.save();
-        res.status(201).json({ mensaje: "Usuario registrado con éxito" });
-    } catch (err) { res.status(400).json({ error: err.message }); }
-};
-
-
-module.exports = { getAll, create };

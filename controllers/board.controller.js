@@ -1,30 +1,48 @@
-const Board = require('../models/board');
+const catchAsync = require('../utils/catch-async');
+const {
+    addColumn,
+    createBoard,
+    deleteColumn,
+    getBoardByProject,
+    reorderColumns,
+    updateColumn
+} = require('../services/board.service');
 
-const getByProject = async (req, res) => {
-    try {
-        const board = await Board.findOne({ proyectoId: req.params.projectId });
-        res.json(board);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+const getByProject = catchAsync(async (req, res) => {
+    const boards = await getBoardByProject(req.params.projectId, req.user);
+    res.json(boards);
+});
+
+const create = catchAsync(async (req, res) => {
+    const board = await createBoard(req.params.projectId, req.body, req.user);
+    res.status(201).json(board);
+});
+
+const createColumn = catchAsync(async (req, res) => {
+    const board = await addColumn(req.params.boardId, req.body, req.user);
+    res.json(board);
+});
+
+const editColumn = catchAsync(async (req, res) => {
+    const board = await updateColumn(req.params.boardId, req.params.columnId, req.body, req.user);
+    res.json(board);
+});
+
+const reorder = catchAsync(async (req, res) => {
+    const board = await reorderColumns(req.params.boardId, req.body.columns, req.user);
+    res.json(board);
+});
+
+const removeColumn = catchAsync(async (req, res) => {
+    const board = await deleteColumn(req.params.boardId, req.params.columnId, req.user);
+    res.json(board);
+});
+
+module.exports = {
+    getByProject,
+    create,
+    createColumn,
+    editColumn,
+    reorder,
+    removeColumn
 };
-
-const create = async (req, res) => {
-    try {
-        const nuevoTablero = new Board(req.body);
-        await nuevoTablero.save();
-        res.status(201).json(nuevoTablero);
-    } catch (err) { res.status(400).json({ error: err.message }); }
-};
-
-const updateWIP = async (req, res) => {
-    try {
-        const { columnaId, limite } = req.body;
-        const board = await Board.findOneAndUpdate(
-            { "columnas._id": columnaId },
-            { "$set": { "columnas.$.limiteWIP": limite } },
-            { new: true }
-        );
-        res.json(board);
-    } catch (err) { res.status(400).json({ error: err.message }); }
-};
-
-module.exports = { getByProject, create, updateWIP };
