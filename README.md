@@ -102,6 +102,20 @@ La API quedara disponible en:
 http://localhost:3000
 ```
 
+Con Docker se cargan datos demo automaticamente para pruebas.
+
+Usuarios semilla:
+
+- `admin.demo@taskflow.local` / `TaskFlow123`
+- `pm.demo@taskflow.local` / `TaskFlow123`
+- `dev.demo@taskflow.local` / `TaskFlow123`
+
+Datos semilla:
+
+- proyecto demo con miembros
+- tablero Kanban por defecto
+- tareas de ejemplo con labels, subtareas, comentarios e historial
+
 ## MVP implementado
 
 - Registro y login con JWT

@@ -9,6 +9,7 @@ services:
       MONGO_URI: mongodb://mongo:27017/taskflow
       JWT_SECRET: taskflow_docker_secret
       NODE_ENV: production
+      SEED_DATA: "true"
     depends_on:
       - mongo
 
