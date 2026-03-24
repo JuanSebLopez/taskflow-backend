@@ -32,11 +32,17 @@ Este proyecto hace parte del caso de estudio TaskFlow para la asignatura de Patr
 ## Estructura actual
 
 ```text
+app.js
+builders/
 config/
 controllers/
+factories/
+middlewares/
 models/
 routes/
+services/
 server.js
+utils/
 ```
 
 ## Requisitos
@@ -75,23 +81,70 @@ Modo desarrollo:
 npx nodemon server.js
 ```
 
+## MVP implementado
+
+- Registro y login con JWT
+- Perfil de usuario y logout
+- Roles base: `ADMIN`, `PROJECT_MANAGER`, `DEVELOPER`
+- Creacion de proyectos con tablero Kanban por defecto
+- Invitacion de miembros por correo
+- Archivado y clonado de proyectos
+- Gestion de tableros y columnas con limite WIP
+- Creacion, edicion, movimiento y clonado de tareas
+- Historial basico de tareas
+- Comentarios y registro de tiempo en tareas
+
 ## Endpoints base
 
+Auth:
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+- `PATCH /api/auth/me`
+
+Users:
 - `GET /api/users`
-- `POST /api/users`
+- `PATCH /api/users/:id/deactivate`
+
+Projects:
 - `GET /api/projects`
 - `POST /api/projects`
-- `GET /api/tasks`
+- `GET /api/projects/:id`
+- `PATCH /api/projects/:id`
+- `DELETE /api/projects/:id`
+- `POST /api/projects/:id/members`
+- `POST /api/projects/:id/archive`
+- `POST /api/projects/:id/clone`
+
+Boards:
+- `GET /api/boards/project/:projectId`
+- `POST /api/boards/project/:projectId`
+- `POST /api/boards/:boardId/columns`
+- `PATCH /api/boards/:boardId/columns/reorder`
+- `PATCH /api/boards/:boardId/columns/:columnId`
+- `DELETE /api/boards/:boardId/columns/:columnId`
+
+Tasks:
+- `GET /api/tasks?projectId=<id>`
 - `POST /api/tasks`
-- `GET /api/boards/:projectId`
-- `POST /api/boards`
+- `GET /api/tasks/:id`
+- `PATCH /api/tasks/:id`
+- `POST /api/tasks/:id/move`
+- `POST /api/tasks/:id/clone`
+- `POST /api/tasks/:id/comments`
+- `PATCH /api/tasks/:id/comments/:commentId`
+- `DELETE /api/tasks/:id/comments/:commentId`
+- `POST /api/tasks/:id/time-logs`
 
 ## Buenas practicas aplicadas o pendientes
 
 - Uso de variables de entorno
-- Separacion inicial por capas (`routes`, `controllers`, `models`)
-- Pendiente fortalecer validaciones, middlewares, servicios y pruebas
-- Pendiente dockerizacion y documentacion ampliada de API
+- Separacion por capas: `routes`, `controllers`, `services`, `models`
+- Manejo centralizado de errores y middleware de autenticacion
+- Patrones visibles para la entrega: `Singleton`, `Factory Method`, `Prototype`, `Builder`
+- Pendiente fortalecer validaciones request por request
+- Pendiente adjuntos de archivos, notificaciones, reportes y dockerizacion
 
 ## Estado del repositorio
 
