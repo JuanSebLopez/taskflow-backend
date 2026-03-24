@@ -1,10 +1,20 @@
 const express = require('express');
-const router = express.Router();
-const { getAll, create, update, remove } = require('../controllers/task.controller');
+const controller = require('../controllers/task.controller');
+const { protect } = require('../middlewares/auth.middleware');
 
-router.get('/', getAll);
-router.post('/', create);
-router.put('/:id', update);
-router.delete('/:id', remove);
+const router = express.Router();
+
+router.use(protect);
+
+router.get('/', controller.list);
+router.post('/', controller.create);
+router.get('/:id', controller.getById);
+router.patch('/:id', controller.update);
+router.post('/:id/move', controller.move);
+router.post('/:id/clone', controller.clone);
+router.post('/:id/comments', controller.comment);
+router.patch('/:id/comments/:commentId', controller.editComment);
+router.delete('/:id/comments/:commentId', controller.removeComment);
+router.post('/:id/time-logs', controller.timeLog);
 
 module.exports = router;
