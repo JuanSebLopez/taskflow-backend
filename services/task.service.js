@@ -3,7 +3,7 @@ const Task = require('../models/task');
 const AppError = require('../utils/app-error');
 const TaskBuilder = require('../builders/task.builder');
 const taskFactory = require('../factories/task.factory');
-const { ensureProjectAccess } = require('./project.service');
+const { ensureProjectAccess, ensureProjectWritable } = require('./project.service');
 
 async function ensureBoardAndColumn(projectId, boardId, columnId) {
     const board = await Board.findOne({ _id: boardId, project: projectId });
@@ -78,7 +78,7 @@ async function listTasks(query, currentUser) {
 }
 
 async function createTask(payload, currentUser) {
-    await ensureProjectAccess(payload.project, currentUser);
+    await ensureProjectWritable(payload.project, currentUser);
     const { board } = await ensureBoardAndColumn(payload.project, payload.board, payload.columnId);
     await validateWipLimit(board, payload.columnId);
 
@@ -115,7 +115,7 @@ async function getTask(taskId, currentUser) {
         throw new AppError('Task not found', 404);
     }
 
-    await ensureProjectAccess(task.project, currentUser);
+    await ensureProjectWritable(task.project, currentUser);
     return task;
 }
 
@@ -126,7 +126,7 @@ async function updateTask(taskId, payload, currentUser) {
         throw new AppError('Task not found', 404);
     }
 
-    await ensureProjectAccess(task.project, currentUser);
+    await ensureProjectWritable(task.project, currentUser);
 
     ['title', 'description', 'priority', 'type', 'dueDate', 'estimatedHours'].forEach((field) => {
         if (payload[field] !== undefined) {
@@ -163,7 +163,7 @@ async function moveTask(taskId, payload, currentUser) {
         throw new AppError('Task not found', 404);
     }
 
-    await ensureProjectAccess(task.project, currentUser);
+    await ensureProjectWritable(task.project, currentUser);
     const { board } = await ensureBoardAndColumn(task.project, task.board, payload.toColumnId);
     await validateWipLimit(board, payload.toColumnId, task._id);
 
@@ -187,7 +187,7 @@ async function cloneTask(taskId, currentUser, overrides = {}) {
         throw new AppError('Task not found', 404);
     }
 
-    await ensureProjectAccess(task.project, currentUser);
+    await ensureProjectWritable(task.project, currentUser);
     const clonedTask = await Task.create(task.clonePrototype(currentUser._id, overrides));
 
     clonedTask.history.push({
@@ -208,7 +208,7 @@ async function addComment(taskId, payload, currentUser) {
         throw new AppError('Task not found', 404);
     }
 
-    await ensureProjectAccess(task.project, currentUser);
+    await ensureProjectWritable(task.project, currentUser);
     task.comments.push({
         author: currentUser._id,
         content: payload.content
@@ -228,7 +228,7 @@ async function updateComment(taskId, commentId, payload, currentUser) {
         throw new AppError('Task not found', 404);
     }
 
-    await ensureProjectAccess(task.project, currentUser);
+    await ensureProjectWritable(task.project, currentUser);
     const comment = task.comments.id(commentId);
 
     if (!comment) {
@@ -252,7 +252,7 @@ async function deleteComment(taskId, commentId, currentUser) {
         throw new AppError('Task not found', 404);
     }
 
-    await ensureProjectAccess(task.project, currentUser);
+    await ensureProjectWritable(task.project, currentUser);
     const comment = task.comments.id(commentId);
 
     if (!comment) {

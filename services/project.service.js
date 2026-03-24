@@ -23,6 +23,16 @@ async function ensureProjectAccess(projectId, user) {
     return project;
 }
 
+async function ensureProjectWritable(projectId, user) {
+    const project = await ensureProjectAccess(projectId, user);
+
+    if (project.isArchived || project.status === 'ARCHIVADO') {
+        throw new AppError('Archived projects are read-only', 400);
+    }
+
+    return project;
+}
+
 async function createProject(payload, currentUser) {
     const project = await Project.create({
         name: payload.name,
@@ -150,6 +160,7 @@ async function cloneProject(projectId, currentUser) {
 
 module.exports = {
     ensureProjectAccess,
+    ensureProjectWritable,
     createProject,
     listProjectsForUser,
     updateProject,
