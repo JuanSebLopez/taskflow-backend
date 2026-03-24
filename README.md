@@ -50,6 +50,7 @@ utils/
 - Node.js 20 o superior
 - npm
 - MongoDB Atlas o una instancia de MongoDB disponible
+- Docker Desktop opcional para ejecucion en contenedores
 
 ## Variables de entorno
 
@@ -79,6 +80,26 @@ Modo desarrollo:
 
 ```bash
 npx nodemon server.js
+```
+
+## Ejecucion con Docker
+
+Construir y levantar backend + MongoDB local:
+
+```bash
+docker compose up --build
+```
+
+Detener contenedores:
+
+```bash
+docker compose down
+```
+
+La API quedara disponible en:
+
+```text
+http://localhost:3000
 ```
 
 ## MVP implementado
@@ -137,14 +158,121 @@ Tasks:
 - `DELETE /api/tasks/:id/comments/:commentId`
 - `POST /api/tasks/:id/time-logs`
 
-## Buenas practicas aplicadas o pendientes
+## Guia de pruebas
+
+Base URL:
+
+```text
+http://localhost:3000/api
+```
+
+Flujo recomendado para Postman:
+
+1. Health check
+
+```http
+GET /api/health
+```
+
+2. Registrar usuario
+
+```json
+POST /api/auth/register
+{
+  "fullName": "Sebas Test",
+  "email": "sebas@test.com",
+  "password": "TaskFlow123"
+}
+```
+
+3. Iniciar sesion y copiar el `token`
+
+```json
+POST /api/auth/login
+{
+  "email": "sebas@test.com",
+  "password": "TaskFlow123"
+}
+```
+
+4. Crear proyecto con header `Authorization: Bearer <token>`
+
+```json
+POST /api/projects
+{
+  "name": "Proyecto MVP",
+  "description": "Proyecto de prueba",
+  "startDate": "2026-03-24T12:00:00.000Z"
+}
+```
+
+5. Consultar tablero por defecto
+
+```http
+GET /api/boards/project/:projectId
+```
+
+6. Crear tarea en la columna `Por hacer`
+
+```json
+POST /api/tasks
+{
+  "title": "Corregir login",
+  "description": "Validar el flujo JWT",
+  "type": "BUG",
+  "project": "<projectId>",
+  "board": "<boardId>",
+  "columnId": "<columnId>"
+}
+```
+
+7. Mover tarea de columna
+
+```json
+POST /api/tasks/:taskId/move
+{
+  "toColumnId": "<targetColumnId>"
+}
+```
+
+8. Comentar tarea
+
+```json
+POST /api/tasks/:taskId/comments
+{
+  "content": "Comentario de prueba"
+}
+```
+
+9. Clonar tarea o proyecto
+
+```http
+POST /api/tasks/:taskId/clone
+POST /api/projects/:projectId/clone
+```
+
+10. Archivar proyecto y verificar modo solo lectura
+
+```http
+POST /api/projects/:projectId/archive
+```
+
+## Buenas practicas aplicadas
 
 - Uso de variables de entorno
 - Separacion por capas: `routes`, `controllers`, `services`, `models`
 - Manejo centralizado de errores y middleware de autenticacion
+- Validaciones basicas por endpoint para el MVP
 - Patrones visibles para la entrega: `Singleton`, `Factory Method`, `Prototype`, `Builder`
-- Pendiente fortalecer validaciones request por request
-- Pendiente adjuntos de archivos, notificaciones, reportes y dockerizacion
+- Dockerfile, `.dockerignore` y `docker-compose.yml`
+
+## Pendientes del sistema
+
+- Adjuntos de archivos
+- Notificaciones en tiempo real y por correo
+- Reportes y dashboard
+- Filtros guardados
+- Auditoria completa y undo
 
 ## Estado del repositorio
 
