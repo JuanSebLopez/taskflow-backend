@@ -1,14 +1,20 @@
 const catchAsync = require('../utils/catch-async');
 const {
+    addAttachments,
     addComment,
+    addSubtask,
     addTimeLog,
+    assignTaskMembers,
     cloneTask,
     createTask,
+    deleteAttachment,
     deleteComment,
+    deleteSubtask,
     getTask,
     listTasks,
     moveTask,
     updateComment,
+    updateSubtask,
     updateTask
 } = require('../services/task.service');
 
@@ -29,6 +35,26 @@ const create = catchAsync(async (req, res) => {
 
 const update = catchAsync(async (req, res) => {
     const task = await updateTask(req.params.id, req.body, req.user);
+    res.json(task);
+});
+
+const assign = catchAsync(async (req, res) => {
+    const task = await assignTaskMembers(req.params.id, req.body, req.user);
+    res.json(task);
+});
+
+const addSubtaskItem = catchAsync(async (req, res) => {
+    const task = await addSubtask(req.params.id, req.body, req.user);
+    res.json(task);
+});
+
+const updateSubtaskItem = catchAsync(async (req, res) => {
+    const task = await updateSubtask(req.params.id, req.params.subtaskId, req.body, req.user);
+    res.json(task);
+});
+
+const removeSubtaskItem = catchAsync(async (req, res) => {
+    const task = await deleteSubtask(req.params.id, req.params.subtaskId, req.user);
     res.json(task);
 });
 
@@ -57,6 +83,16 @@ const removeComment = catchAsync(async (req, res) => {
     res.json(task);
 });
 
+const uploadAttachments = catchAsync(async (req, res) => {
+    const task = await addAttachments(req.params.id, req.files, req.user);
+    res.json(task);
+});
+
+const removeAttachment = catchAsync(async (req, res) => {
+    const task = await deleteAttachment(req.params.id, req.params.attachmentId, req.user);
+    res.json(task);
+});
+
 const timeLog = catchAsync(async (req, res) => {
     const task = await addTimeLog(req.params.id, req.body, req.user);
     res.json(task);
@@ -67,10 +103,16 @@ module.exports = {
     getById,
     create,
     update,
+    assign,
+    addSubtask: addSubtaskItem,
+    updateSubtask: updateSubtaskItem,
+    removeSubtask: removeSubtaskItem,
     move,
     clone,
     comment,
     editComment,
     removeComment,
+    uploadAttachments,
+    removeAttachment,
     timeLog
 };

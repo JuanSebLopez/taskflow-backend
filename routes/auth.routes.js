@@ -64,20 +64,22 @@ router.post('/logout', protect, controller.logout);
  *     responses:
  *       200:
  *         description: Perfil del usuario autenticado
- */
-router.get('/me', protect, controller.me);
-/**
- * @swagger
- * /api/auth/me:
  *   patch:
  *     summary: Actualizar perfil del usuario autenticado
  *     tags: [Auth]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ProfileUpdateRequest'
  *     responses:
  *       200:
  *         description: Perfil actualizado
  */
+router.get('/me', protect, controller.me);
 router.patch('/me', protect, validate({ body: validateProfileUpdate }), controller.updateMe);
 
 module.exports = router;

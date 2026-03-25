@@ -36,6 +36,27 @@ const SubtaskSchema = new mongoose.Schema(
     { timestamps: false }
 );
 
+const AttachmentSchema = new mongoose.Schema(
+    {
+        originalName: { type: String, required: true },
+        storedName: { type: String, required: true },
+        mimeType: { type: String, required: true },
+        size: { type: Number, required: true },
+        relativePath: { type: String, required: true },
+        url: { type: String, required: true },
+        uploadedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
+        },
+        uploadedAt: {
+            type: Date,
+            default: Date.now
+        }
+    },
+    { _id: true }
+);
+
 const TimeLogSchema = new mongoose.Schema(
     {
         user: {
@@ -62,10 +83,7 @@ const TimeLogSchema = new mongoose.Schema(
 
 const HistorySchema = new mongoose.Schema(
     {
-        action: {
-            type: String,
-            required: true
-        },
+        action: { type: String, required: true },
         performedBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
@@ -93,33 +111,12 @@ const HistorySchema = new mongoose.Schema(
 
 const TaskSchema = new mongoose.Schema(
     {
-        title: {
-            type: String,
-            required: true,
-            trim: true
-        },
-        description: {
-            type: String,
-            default: ''
-        },
-        priority: {
-            type: String,
-            enum: TASK_PRIORITIES,
-            default: 'MEDIA'
-        },
-        type: {
-            type: String,
-            enum: TASK_TYPES,
-            default: 'TASK'
-        },
-        dueDate: {
-            type: Date,
-            default: null
-        },
-        estimatedHours: {
-            type: Number,
-            default: 0
-        },
+        title: { type: String, required: true, trim: true },
+        description: { type: String, default: '' },
+        priority: { type: String, enum: TASK_PRIORITIES, default: 'MEDIA' },
+        type: { type: String, enum: TASK_TYPES, default: 'TASK' },
+        dueDate: { type: Date, default: null },
+        estimatedHours: { type: Number, default: 0 },
         project: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Project',
@@ -139,19 +136,19 @@ const TaskSchema = new mongoose.Schema(
             ref: 'User',
             required: true
         },
-        assignees: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'User'
-            }
-        ],
+        assignees: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
         labels: [LabelSchema],
         comments: [CommentSchema],
         subtasks: [SubtaskSchema],
+        attachments: [AttachmentSchema],
         timeLogs: [TimeLogSchema],
         history: [HistorySchema]
     },
-    { timestamps: true }
+    {
+        timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
+    }
 );
 
 TaskSchema.virtual('subtaskProgress').get(function getSubtaskProgress() {
@@ -181,6 +178,7 @@ TaskSchema.methods.clonePrototype = function clonePrototype(newUserId, overrides
             title: subtask.title,
             isCompleted: false
         })),
+        attachments: [],
         comments: [],
         timeLogs: [],
         history: []
