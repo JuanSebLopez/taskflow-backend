@@ -62,11 +62,6 @@ router.post('/', validate({ body: validateProjectCreate }), controller.create);
  *     responses:
  *       200:
  *         description: Proyecto encontrado
- */
-router.get('/:id', validate({ params: validateProjectId }), controller.getById);
-/**
- * @swagger
- * /api/projects/{id}:
  *   patch:
  *     summary: Actualizar proyecto
  *     tags: [Projects]
@@ -78,11 +73,33 @@ router.get('/:id', validate({ params: validateProjectId }), controller.getById);
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ProjectUpdateRequest'
  *     responses:
  *       200:
  *         description: Proyecto actualizado
+ *   delete:
+ *     summary: Eliminar proyecto
+ *     tags: [Projects]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Proyecto eliminado
  */
+router.get('/:id', validate({ params: validateProjectId }), controller.getById);
 router.patch('/:id', validate({ params: validateProjectId, body: validateProjectUpdate }), controller.update);
+router.delete('/:id', validate({ params: validateProjectId }), controller.remove);
 /**
  * @swagger
  * /api/projects/{id}/members:
@@ -97,13 +114,54 @@ router.patch('/:id', validate({ params: validateProjectId, body: validateProject
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ProjectMemberRequest'
  *     responses:
  *       200:
  *         description: Miembro agregado
  */
-router.delete('/:id', validate({ params: validateProjectId }), controller.remove);
 router.post('/:id/members', validate({ params: validateProjectId, body: validateProjectMember }), controller.addMember);
+/**
+ * @swagger
+ * /api/projects/{id}/archive:
+ *   post:
+ *     summary: Archivar proyecto
+ *     tags: [Projects]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Proyecto archivado
+ */
 router.post('/:id/archive', validate({ params: validateProjectId }), controller.archive);
+/**
+ * @swagger
+ * /api/projects/{id}/clone:
+ *   post:
+ *     summary: Clonar proyecto como plantilla
+ *     tags: [Projects]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       201:
+ *         description: Proyecto clonado
+ */
 router.post('/:id/clone', validate({ params: validateProjectId }), controller.clone);
 
 module.exports = router;
