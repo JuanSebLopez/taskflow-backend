@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const Board = require('../models/board');
 const Task = require('../models/task');
 const AppError = require('../utils/app-error');
@@ -40,6 +42,64 @@ async function validateWipLimit(board, columnId, excludingTaskId = null) {
     }
 }
 
+async function validateAssignees(project, assigneeIds = []) {
+    if (!Array.isArray(assigneeIds) || assigneeIds.length === 0) {
+        return [];
+    }
+
+    const allowedIds = new Set([
+        project.owner.toString(),
+        ...project.members.map((member) => member.user.toString())
+    ]);
+
+    assigneeIds.forEach((assigneeId) => {
+        if (!allowedIds.has(assigneeId.toString())) {
+            throw new AppError('Assignees must belong to the project members list', 400);
+        }
+    });
+
+    return assigneeIds;
+}
+
+function removeStoredFile(relativePath) {
+    if (!relativePath) {
+        return;
+    }
+
+    const absolutePath = path.join(__dirname, '..', relativePath);
+    if (fs.existsSync(absolutePath)) {
+        fs.unlinkSync(absolutePath);
+    }
+}
+
+function buildAttachmentRecord(file, currentUser) {
+    const relativePath = path.join('uploads', 'tasks', file.filename);
+
+    return {
+        originalName: file.originalname,
+        storedName: file.filename,
+        mimeType: file.mimetype,
+        size: file.size,
+        relativePath,
+        url: `/${relativePath.replace(/\\/g, '/')}`,
+        uploadedBy: currentUser._id
+    };
+}
+
+function validateSubtaskPayload(subtask) {
+    if (!subtask || typeof subtask.title !== 'string' || !subtask.title.trim()) {
+        throw new AppError('Subtask title is required', 400);
+    }
+}
+
+function populateTaskQuery(query) {
+    return query
+        .populate('assignees', 'fullName email role')
+        .populate('createdBy', 'fullName email')
+        .populate('comments.author', 'fullName email')
+        .populate('attachments.uploadedBy', 'fullName email');
+}
+
 async function listTasks(query, currentUser) {
     if (!query.projectId) {
         throw new AppError('projectId query parameter is required', 400);
@@ -72,15 +132,14 @@ async function listTasks(query, currentUser) {
         filter.type = query.type;
     }
 
-    return Task.find(filter)
-        .populate('assignees', 'fullName email role')
-        .populate('createdBy', 'fullName email');
+    return populateTaskQuery(Task.find(filter));
 }
 
 async function createTask(payload, currentUser) {
-    await ensureProjectWritable(payload.project, currentUser);
+    const project = await ensureProjectWritable(payload.project, currentUser);
     const { board } = await ensureBoardAndColumn(payload.project, payload.board, payload.columnId);
     await validateWipLimit(board, payload.columnId);
+    await validateAssignees(project, payload.assignees || []);
 
     const creator = taskFactory.getCreator(payload.type);
     const baseData = creator.create(payload);
@@ -102,20 +161,18 @@ async function createTask(payload, currentUser) {
         }
     ];
 
-    return Task.create(taskData);
+    const task = await Task.create(taskData);
+    return getTask(task._id, currentUser);
 }
 
 async function getTask(taskId, currentUser) {
-    const task = await Task.findById(taskId)
-        .populate('assignees', 'fullName email role')
-        .populate('createdBy', 'fullName email')
-        .populate('comments.author', 'fullName email');
+    const task = await populateTaskQuery(Task.findById(taskId));
 
     if (!task) {
         throw new AppError('Task not found', 404);
     }
 
-    await ensureProjectWritable(task.project, currentUser);
+    await ensureProjectAccess(task.project, currentUser);
     return task;
 }
 
@@ -126,7 +183,7 @@ async function updateTask(taskId, payload, currentUser) {
         throw new AppError('Task not found', 404);
     }
 
-    await ensureProjectWritable(task.project, currentUser);
+    const project = await ensureProjectWritable(task.project, currentUser);
 
     ['title', 'description', 'priority', 'type', 'dueDate', 'estimatedHours'].forEach((field) => {
         if (payload[field] !== undefined) {
@@ -139,6 +196,7 @@ async function updateTask(taskId, payload, currentUser) {
     }
 
     if (payload.assignees) {
+        await validateAssignees(project, payload.assignees);
         task.assignees = payload.assignees;
     }
 
@@ -153,7 +211,110 @@ async function updateTask(taskId, payload, currentUser) {
     });
 
     await task.save();
-    return task;
+    return getTask(task._id, currentUser);
+}
+
+async function assignTaskMembers(taskId, payload, currentUser) {
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+        throw new AppError('Task not found', 404);
+    }
+
+    const project = await ensureProjectWritable(task.project, currentUser);
+    await validateAssignees(project, payload.assignees);
+
+    task.assignees = payload.assignees;
+    task.history.push({
+        action: 'ASSIGNEES_UPDATED',
+        performedBy: currentUser._id,
+        metadata: { assigneeCount: payload.assignees.length }
+    });
+
+    await task.save();
+    return getTask(task._id, currentUser);
+}
+
+async function addSubtask(taskId, payload, currentUser) {
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+        throw new AppError('Task not found', 404);
+    }
+
+    await ensureProjectWritable(task.project, currentUser);
+    validateSubtaskPayload(payload);
+
+    task.subtasks.push({
+        title: payload.title.trim(),
+        isCompleted: Boolean(payload.isCompleted)
+    });
+    task.history.push({
+        action: 'SUBTASK_ADDED',
+        performedBy: currentUser._id,
+        metadata: { title: payload.title.trim() }
+    });
+
+    await task.save();
+    return getTask(task._id, currentUser);
+}
+
+async function updateSubtask(taskId, subtaskId, payload, currentUser) {
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+        throw new AppError('Task not found', 404);
+    }
+
+    await ensureProjectWritable(task.project, currentUser);
+    const subtask = task.subtasks.id(subtaskId);
+
+    if (!subtask) {
+        throw new AppError('Subtask not found', 404);
+    }
+
+    if (payload.title !== undefined) {
+        validateSubtaskPayload({ title: payload.title });
+        subtask.title = payload.title.trim();
+    }
+
+    if (payload.isCompleted !== undefined) {
+        subtask.isCompleted = Boolean(payload.isCompleted);
+    }
+
+    task.history.push({
+        action: 'SUBTASK_UPDATED',
+        performedBy: currentUser._id,
+        metadata: { subtaskId }
+    });
+
+    await task.save();
+    return getTask(task._id, currentUser);
+}
+
+async function deleteSubtask(taskId, subtaskId, currentUser) {
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+        throw new AppError('Task not found', 404);
+    }
+
+    await ensureProjectWritable(task.project, currentUser);
+    const subtask = task.subtasks.id(subtaskId);
+
+    if (!subtask) {
+        throw new AppError('Subtask not found', 404);
+    }
+
+    subtask.deleteOne();
+    task.history.push({
+        action: 'SUBTASK_DELETED',
+        performedBy: currentUser._id,
+        metadata: { subtaskId }
+    });
+
+    await task.save();
+    return getTask(task._id, currentUser);
 }
 
 async function moveTask(taskId, payload, currentUser) {
@@ -177,7 +338,7 @@ async function moveTask(taskId, payload, currentUser) {
     });
 
     await task.save();
-    return task;
+    return getTask(task._id, currentUser);
 }
 
 async function cloneTask(taskId, currentUser, overrides = {}) {
@@ -198,7 +359,7 @@ async function cloneTask(taskId, currentUser, overrides = {}) {
     });
 
     await clonedTask.save();
-    return clonedTask;
+    return getTask(clonedTask._id, currentUser);
 }
 
 async function addComment(taskId, payload, currentUser) {
@@ -218,7 +379,7 @@ async function addComment(taskId, payload, currentUser) {
         performedBy: currentUser._id
     });
     await task.save();
-    return task;
+    return getTask(task._id, currentUser);
 }
 
 async function updateComment(taskId, commentId, payload, currentUser) {
@@ -241,8 +402,13 @@ async function updateComment(taskId, commentId, payload, currentUser) {
 
     comment.content = payload.content;
     comment.editedAt = new Date();
+    task.history.push({
+        action: 'COMMENT_UPDATED',
+        performedBy: currentUser._id,
+        metadata: { commentId }
+    });
     await task.save();
-    return task;
+    return getTask(task._id, currentUser);
 }
 
 async function deleteComment(taskId, commentId, currentUser) {
@@ -269,7 +435,60 @@ async function deleteComment(taskId, commentId, currentUser) {
         performedBy: currentUser._id
     });
     await task.save();
-    return task;
+    return getTask(task._id, currentUser);
+}
+
+async function addAttachments(taskId, files, currentUser) {
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+        throw new AppError('Task not found', 404);
+    }
+
+    await ensureProjectWritable(task.project, currentUser);
+
+    if (!files || files.length === 0) {
+        throw new AppError('At least one file is required', 400);
+    }
+
+    files.forEach((file) => {
+        task.attachments.push(buildAttachmentRecord(file, currentUser));
+    });
+
+    task.history.push({
+        action: 'ATTACHMENT_ADDED',
+        performedBy: currentUser._id,
+        metadata: { count: files.length }
+    });
+
+    await task.save();
+    return getTask(task._id, currentUser);
+}
+
+async function deleteAttachment(taskId, attachmentId, currentUser) {
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+        throw new AppError('Task not found', 404);
+    }
+
+    await ensureProjectWritable(task.project, currentUser);
+    const attachment = task.attachments.id(attachmentId);
+
+    if (!attachment) {
+        throw new AppError('Attachment not found', 404);
+    }
+
+    removeStoredFile(attachment.relativePath);
+    attachment.deleteOne();
+    task.history.push({
+        action: 'ATTACHMENT_DELETED',
+        performedBy: currentUser._id,
+        metadata: { attachmentId }
+    });
+
+    await task.save();
+    return getTask(task._id, currentUser);
 }
 
 async function addTimeLog(taskId, payload, currentUser) {
@@ -279,7 +498,7 @@ async function addTimeLog(taskId, payload, currentUser) {
         throw new AppError('Task not found', 404);
     }
 
-    await ensureProjectAccess(task.project, currentUser);
+    await ensureProjectWritable(task.project, currentUser);
     task.timeLogs.push({
         user: currentUser._id,
         hours: payload.hours,
@@ -291,7 +510,7 @@ async function addTimeLog(taskId, payload, currentUser) {
         metadata: { hours: payload.hours }
     });
     await task.save();
-    return task;
+    return getTask(task._id, currentUser);
 }
 
 module.exports = {
@@ -299,10 +518,16 @@ module.exports = {
     createTask,
     getTask,
     updateTask,
+    assignTaskMembers,
+    addSubtask,
+    updateSubtask,
+    deleteSubtask,
     moveTask,
     cloneTask,
     addComment,
     updateComment,
     deleteComment,
+    addAttachments,
+    deleteAttachment,
     addTimeLog
 };

@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/user');
 const AppError = require('../utils/app-error');
+const { USER_ROLES } = require('../utils/constants');
 
 async function registerUser(payload) {
     const existingUser = await User.findOne({ email: payload.email.toLowerCase() });
@@ -72,15 +73,39 @@ async function logoutUser(userId) {
     await user.save();
 }
 
-async function deactivateUser(userId) {
+async function updateUserStatus(userId, isActive) {
     const user = await User.findById(userId);
 
     if (!user) {
         throw new AppError('User not found', 404);
     }
 
-    user.isActive = false;
-    user.sessionVersion += 1;
+    user.isActive = isActive;
+
+    if (!isActive) {
+        user.sessionVersion += 1;
+    }
+
+    await user.save();
+    return user;
+}
+
+async function deactivateUser(userId) {
+    return updateUserStatus(userId, false);
+}
+
+async function updateUserRole(userId, role) {
+    const user = await User.findById(userId);
+
+    if (!user) {
+        throw new AppError('User not found', 404);
+    }
+
+    if (!USER_ROLES.includes(role)) {
+        throw new AppError(`role must be one of: ${USER_ROLES.join(', ')}`, 400);
+    }
+
+    user.role = role;
     await user.save();
     return user;
 }
@@ -90,5 +115,7 @@ module.exports = {
     authenticateUser,
     updateProfile,
     logoutUser,
-    deactivateUser
+    deactivateUser,
+    updateUserRole,
+    updateUserStatus
 };

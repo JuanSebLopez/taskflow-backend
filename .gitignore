@@ -10,6 +10,10 @@ node_modules/
 *.log
 npm-debug.log*
 
+# Local uploads
+uploads/*
+!uploads/.gitkeep
+
 # OS / editor files
 .DS_Store
 Thumbs.db
