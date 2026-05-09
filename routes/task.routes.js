@@ -14,6 +14,7 @@ const {
     validateSubtaskUpdate,
     validateTaskCreate,
     validateTaskId,
+    validateTaskListQuery,
     validateTaskUpdate,
     validateTimeLog
 } = require('../validators/task.validator');
@@ -56,11 +57,33 @@ router.use(protect);
  *         name: type
  *         schema:
  *           type: string
+ *       - in: query
+ *         name: assigneeId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: labelName
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: dueDateFrom
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: dueDateTo
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: overdueOnly
+ *         schema:
+ *           type: boolean
  *     responses:
  *       200:
  *         description: Lista de tareas
  */
-router.get('/', controller.list);
+router.get('/', validate({ query: validateTaskListQuery }), controller.list);
 /**
  * @swagger
  * /api/tasks:

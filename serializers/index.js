@@ -115,6 +115,30 @@ function serializeProject(project) {
     };
 }
 
+function serializeProjectListItem(project) {
+    if (!project) {
+        return null;
+    }
+
+    const plain = toPlain(project);
+
+    return {
+        id: toId(plain),
+        name: plain.name,
+        description: plain.description || '',
+        status: plain.status,
+        isArchived: Boolean(plain.isArchived),
+        owner: plain.owner && typeof plain.owner === 'object'
+            ? serializeCompactUser(plain.owner)
+            : { id: toId(plain.owner) },
+        memberCount: Array.isArray(plain.members) ? plain.members.length : 0,
+        progress: typeof plain.progress === 'number' ? plain.progress : undefined,
+        startDate: plain.startDate || null,
+        estimatedEndDate: plain.estimatedEndDate || null,
+        updatedAt: plain.updatedAt || null
+    };
+}
+
 function serializeProjectSummary(project) {
     if (!project) {
         return null;
@@ -127,6 +151,29 @@ function serializeProjectSummary(project) {
         name: plain.name,
         status: plain.status,
         isArchived: Boolean(plain.isArchived)
+    };
+}
+
+function serializeProjectMutation(project) {
+    if (!project) {
+        return null;
+    }
+
+    const plain = toPlain(project);
+
+    return {
+        id: toId(plain),
+        name: plain.name,
+        description: plain.description || '',
+        status: plain.status,
+        isArchived: Boolean(plain.isArchived),
+        archivedAt: plain.archivedAt || null,
+        ownerId: toId(plain.owner),
+        memberCount: Array.isArray(plain.members) ? plain.members.length : 0,
+        startDate: plain.startDate || null,
+        estimatedEndDate: plain.estimatedEndDate || null,
+        createdAt: plain.createdAt || null,
+        updatedAt: plain.updatedAt || null
     };
 }
 
@@ -159,6 +206,24 @@ function serializeBoard(board) {
         isDefault: Boolean(plain.isDefault),
         columns: Array.isArray(plain.columns) ? plain.columns.map(serializeBoardColumn) : [],
         createdAt: plain.createdAt || null,
+        updatedAt: plain.updatedAt || null
+    };
+}
+
+function serializeBoardMutation(board) {
+    if (!board) {
+        return null;
+    }
+
+    const plain = toPlain(board);
+
+    return {
+        id: toId(plain),
+        name: plain.name,
+        projectId: toId(plain.project),
+        isDefault: Boolean(plain.isDefault),
+        columnCount: Array.isArray(plain.columns) ? plain.columns.length : 0,
+        columns: Array.isArray(plain.columns) ? plain.columns.map(serializeBoardColumn) : [],
         updatedAt: plain.updatedAt || null
     };
 }
@@ -272,11 +337,84 @@ function serializeTask(task) {
         })) : [],
         subtasks: Array.isArray(plain.subtasks) ? plain.subtasks.map(serializeSubtask) : [],
         subtaskProgress: plain.subtaskProgress || 0,
+        isCompleted: Boolean(plain.isCompleted),
+        isOverdue: Boolean(plain.isOverdue),
         comments: Array.isArray(plain.comments) ? plain.comments.map(serializeTaskComment) : [],
         attachments: Array.isArray(plain.attachments) ? plain.attachments.map(serializeTaskAttachment) : [],
         timeLogs: Array.isArray(plain.timeLogs) ? plain.timeLogs.map(serializeTimeLog) : [],
         history: Array.isArray(plain.history) ? plain.history.map(serializeTaskHistoryEntry) : [],
         createdAt: plain.createdAt || null,
+        updatedAt: plain.updatedAt || null
+    };
+}
+
+function serializeTaskListItem(task) {
+    if (!task) {
+        return null;
+    }
+
+    const plain = toPlain(task);
+
+    return {
+        id: toId(plain),
+        title: plain.title,
+        description: plain.description || '',
+        priority: plain.priority,
+        type: plain.type,
+        dueDate: plain.dueDate || null,
+        estimatedHours: plain.estimatedHours || 0,
+        projectId: toId(plain.project),
+        boardId: toId(plain.board),
+        columnId: toId(plain.columnId),
+        createdBy: serializeCompactUser(plain.createdBy),
+        assignees: Array.isArray(plain.assignees) ? plain.assignees.map(serializeCompactUser) : [],
+        labels: Array.isArray(plain.labels) ? plain.labels.map((label) => ({
+            name: label.name,
+            color: label.color || '#6b7280'
+        })) : [],
+        subtasks: Array.isArray(plain.subtasks) ? plain.subtasks.map(serializeSubtask) : [],
+        subtaskProgress: plain.subtaskProgress || 0,
+        isCompleted: Boolean(plain.isCompleted),
+        isOverdue: Boolean(plain.isOverdue),
+        commentCount: Array.isArray(plain.comments) ? plain.comments.length : 0,
+        attachmentCount: Array.isArray(plain.attachments) ? plain.attachments.length : 0,
+        timeLogCount: Array.isArray(plain.timeLogs) ? plain.timeLogs.length : 0,
+        createdAt: plain.createdAt || null,
+        updatedAt: plain.updatedAt || null
+    };
+}
+
+function serializeTaskMutation(task) {
+    if (!task) {
+        return null;
+    }
+
+    const plain = toPlain(task);
+
+    return {
+        id: toId(plain),
+        title: plain.title,
+        description: plain.description || '',
+        priority: plain.priority,
+        type: plain.type,
+        dueDate: plain.dueDate || null,
+        estimatedHours: plain.estimatedHours || 0,
+        projectId: toId(plain.project),
+        boardId: toId(plain.board),
+        columnId: toId(plain.columnId),
+        createdBy: serializeCompactUser(plain.createdBy),
+        assignees: Array.isArray(plain.assignees) ? plain.assignees.map(serializeCompactUser) : [],
+        labels: Array.isArray(plain.labels) ? plain.labels.map((label) => ({
+            name: label.name,
+            color: label.color || '#6b7280'
+        })) : [],
+        subtasks: Array.isArray(plain.subtasks) ? plain.subtasks.map(serializeSubtask) : [],
+        subtaskProgress: plain.subtaskProgress || 0,
+        isCompleted: Boolean(plain.isCompleted),
+        isOverdue: Boolean(plain.isOverdue),
+        commentCount: Array.isArray(plain.comments) ? plain.comments.length : 0,
+        attachmentCount: Array.isArray(plain.attachments) ? plain.attachments.length : 0,
+        timeLogCount: Array.isArray(plain.timeLogs) ? plain.timeLogs.length : 0,
         updatedAt: plain.updatedAt || null
     };
 }
@@ -293,7 +431,41 @@ function serializeTaskSummary(task) {
         title: plain.title,
         priority: plain.priority,
         type: plain.type,
-        subtaskProgress: plain.subtaskProgress || 0
+        subtaskProgress: plain.subtaskProgress || 0,
+        isCompleted: Boolean(plain.isCompleted),
+        isOverdue: Boolean(plain.isOverdue)
+    };
+}
+
+function serializeSavedTaskFilter(filter) {
+    if (!filter) {
+        return null;
+    }
+
+    const plain = toPlain(filter);
+
+    return {
+        id: toId(plain),
+        name: plain.name,
+        projectId: toId(plain.project),
+        criteria: {
+            search: plain.criteria?.search || '',
+            boardId: toId(plain.criteria?.boardId),
+            columnId: toId(plain.criteria?.columnId),
+            assigneeId: toId(plain.criteria?.assigneeId),
+            labelName: plain.criteria?.labelName || '',
+            priority: plain.criteria?.priority || '',
+            type: plain.criteria?.type || '',
+            dueDateFrom: plain.criteria?.dueDateFrom || null,
+            dueDateTo: plain.criteria?.dueDateTo || null,
+            overdueOnly: plain.criteria?.overdueOnly === true
+                ? true
+                : plain.criteria?.overdueOnly === false
+                    ? false
+                    : null
+        },
+        createdAt: plain.createdAt || null,
+        updatedAt: plain.updatedAt || null
     };
 }
 
@@ -344,10 +516,16 @@ module.exports = {
     serializeCompactUser,
     serializeUser,
     serializeProject,
+    serializeProjectListItem,
     serializeProjectSummary,
+    serializeProjectMutation,
     serializeBoard,
+    serializeBoardMutation,
     serializeTask,
+    serializeTaskListItem,
+    serializeTaskMutation,
     serializeTaskSummary,
+    serializeSavedTaskFilter,
     serializeNotification,
     serializeAuditLog
 };

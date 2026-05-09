@@ -252,6 +252,29 @@ const options = {
                         note: { type: 'string', example: 'Revision del bug' }
                     }
                 },
+                SavedTaskFilterRequest: {
+                    type: 'object',
+                    required: ['name', 'projectId', 'criteria'],
+                    properties: {
+                        name: { type: 'string', example: 'Mis bugs urgentes' },
+                        projectId: { type: 'string', example: '69ff37a58184a2410f522ffb' },
+                        criteria: {
+                            type: 'object',
+                            properties: {
+                                search: { type: 'string', example: 'login' },
+                                boardId: { type: 'string', example: '69ff37a58184a2410f522ffd' },
+                                columnId: { type: 'string', example: '69ff37a58184a2410f522ffe' },
+                                assigneeId: { type: 'string', example: '69ff388d8184a2410f52301a' },
+                                labelName: { type: 'string', example: 'backend' },
+                                priority: { type: 'string', enum: ['BAJA', 'MEDIA', 'ALTA', 'URGENTE'] },
+                                type: { type: 'string', enum: ['BUG', 'FEATURE', 'TASK', 'IMPROVEMENT'] },
+                                dueDateFrom: { type: 'string', format: 'date-time' },
+                                dueDateTo: { type: 'string', format: 'date-time' },
+                                overdueOnly: { type: 'boolean', nullable: true, example: false }
+                            }
+                        }
+                    }
+                },
                 UserRoleRequest: {
                     type: 'object',
                     required: ['role'],

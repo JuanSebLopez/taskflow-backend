@@ -1,6 +1,10 @@
 const { TASK_PRIORITIES, TASK_TYPES } = require('../utils/constants');
 const { collectObjectId, collectRequiredString, isPositiveNumber, isValidObjectId } = require('./common.validator');
 
+function isValidDateInput(value) {
+    return typeof value === 'string' && !Number.isNaN(Date.parse(value));
+}
+
 function validateTaskCreate(body) {
     const errors = [];
     const titleError = collectRequiredString(body, 'title', 'title');
@@ -189,8 +193,47 @@ function validateAttachmentParams(params) {
     return errors;
 }
 
+function validateTaskListQuery(query) {
+    const errors = [];
+
+    const projectIdError = collectObjectId(query, 'projectId', 'projectId');
+    if (projectIdError) {
+        errors.push(projectIdError);
+    }
+
+    ['boardId', 'columnId', 'assigneeId'].forEach((field) => {
+        if (query[field]) {
+            const error = collectObjectId(query, field, field);
+            if (error) {
+                errors.push(error);
+            }
+        }
+    });
+
+    if (query.priority && !TASK_PRIORITIES.includes(query.priority)) {
+        errors.push(`priority must be one of: ${TASK_PRIORITIES.join(', ')}`);
+    }
+
+    if (query.type && !TASK_TYPES.includes(query.type)) {
+        errors.push(`type must be one of: ${TASK_TYPES.join(', ')}`);
+    }
+
+    ['dueDateFrom', 'dueDateTo'].forEach((field) => {
+        if (query[field] && !isValidDateInput(query[field])) {
+            errors.push(`${field} must be a valid ISO date`);
+        }
+    });
+
+    if (query.overdueOnly !== undefined && !['true', 'false'].includes(String(query.overdueOnly))) {
+        errors.push('overdueOnly must be true or false');
+    }
+
+    return errors;
+}
+
 module.exports = {
     validateTaskCreate,
+    validateTaskListQuery,
     validateTaskUpdate,
     validateTaskId,
     validateMoveTask,
