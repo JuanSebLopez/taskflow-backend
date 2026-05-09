@@ -48,6 +48,34 @@ function validateProfileUpdate(body) {
         errors.push('bio must be a string');
     }
 
+    if (body.notificationPreferences !== undefined) {
+        const channels = ['inApp', 'email'];
+        const keys = ['projectMemberAdded', 'projectArchived', 'taskAssigned', 'taskMoved', 'taskCommented'];
+
+        if (typeof body.notificationPreferences !== 'object' || Array.isArray(body.notificationPreferences) || body.notificationPreferences === null) {
+            errors.push('notificationPreferences must be an object');
+        } else {
+            channels.forEach((channel) => {
+                const value = body.notificationPreferences[channel];
+
+                if (value === undefined) {
+                    return;
+                }
+
+                if (typeof value !== 'object' || Array.isArray(value) || value === null) {
+                    errors.push(`notificationPreferences.${channel} must be an object`);
+                    return;
+                }
+
+                keys.forEach((key) => {
+                    if (value[key] !== undefined && typeof value[key] !== 'boolean') {
+                        errors.push(`notificationPreferences.${channel}.${key} must be a boolean`);
+                    }
+                });
+            });
+        }
+    }
+
     return errors;
 }
 

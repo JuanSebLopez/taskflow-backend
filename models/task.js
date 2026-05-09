@@ -152,7 +152,7 @@ const TaskSchema = new mongoose.Schema(
 );
 
 TaskSchema.virtual('subtaskProgress').get(function getSubtaskProgress() {
-    if (!this.subtasks.length) {
+    if (!Array.isArray(this.subtasks) || this.subtasks.length === 0) {
         return 0;
     }
 

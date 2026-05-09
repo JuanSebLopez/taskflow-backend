@@ -5,6 +5,8 @@ const Task = require('../models/task');
 const AppError = require('../utils/app-error');
 const TaskBuilder = require('../builders/task.builder');
 const taskFactory = require('../factories/task.factory');
+const { createAuditLog } = require('./audit-log.service');
+const { notifyMany } = require('./notification.service');
 const { ensureProjectAccess, ensureProjectWritable } = require('./project.service');
 
 async function ensureBoardAndColumn(projectId, boardId, columnId) {
@@ -92,6 +94,12 @@ function validateSubtaskPayload(subtask) {
     }
 }
 
+function withoutActor(userIds = [], actorId) {
+    return [...new Set(userIds.map((userId) => userId.toString()))].filter(
+        (userId) => userId !== actorId.toString()
+    );
+}
+
 function populateTaskQuery(query) {
     return query
         .populate('assignees', 'fullName email role')
@@ -150,18 +158,31 @@ async function createTask(payload, currentUser) {
         .withLabels(payload.labels)
         .withAssignees(payload.assignees)
         .withSubtasks(payload.subtasks)
+        .withHistory([
+            {
+                action: 'TASK_CREATED',
+                performedBy: currentUser._id,
+                toColumnId: payload.columnId,
+                metadata: { type: baseData.type || payload.type || 'TASK' }
+            }
+        ])
         .build();
 
-    taskData.history = [
-        {
-            action: 'TASK_CREATED',
-            performedBy: currentUser._id,
-            toColumnId: payload.columnId,
-            metadata: { type: taskData.type }
-        }
-    ];
-
     const task = await Task.create(taskData);
+    await createAuditLog({
+        module: 'TASKS',
+        action: 'TASK_CREATED',
+        actor: currentUser._id,
+        project: task.project,
+        task: task._id,
+        resourceType: 'Task',
+        resourceId: task._id.toString(),
+        metadata: {
+            title: task.title,
+            type: task.type,
+            columnId: task.columnId.toString()
+        }
+    });
     return getTask(task._id, currentUser);
 }
 
@@ -211,6 +232,16 @@ async function updateTask(taskId, payload, currentUser) {
     });
 
     await task.save();
+    await createAuditLog({
+        module: 'TASKS',
+        action: 'TASK_UPDATED',
+        actor: currentUser._id,
+        project: task.project,
+        task: task._id,
+        resourceType: 'Task',
+        resourceId: task._id.toString(),
+        metadata: { updatedFields: Object.keys(payload) }
+    });
     return getTask(task._id, currentUser);
 }
 
@@ -232,6 +263,27 @@ async function assignTaskMembers(taskId, payload, currentUser) {
     });
 
     await task.save();
+    await createAuditLog({
+        module: 'TASKS',
+        action: 'TASK_ASSIGNEES_UPDATED',
+        actor: currentUser._id,
+        project: task.project,
+        task: task._id,
+        resourceType: 'Task',
+        resourceId: task._id.toString(),
+        metadata: { assigneeIds: payload.assignees }
+    });
+    await notifyMany(withoutActor(payload.assignees, currentUser._id), {
+        type: 'TASK_ASSIGNED',
+        title: 'Nueva asignacion de tarea',
+        message: `Se te asigno la tarea "${task.title}"`,
+        relatedProject: task.project,
+        relatedTask: task._id,
+        metadata: {
+            taskId: task._id.toString(),
+            projectId: task.project.toString()
+        }
+    });
     return getTask(task._id, currentUser);
 }
 
@@ -256,6 +308,16 @@ async function addSubtask(taskId, payload, currentUser) {
     });
 
     await task.save();
+    await createAuditLog({
+        module: 'TASKS',
+        action: 'TASK_SUBTASK_ADDED',
+        actor: currentUser._id,
+        project: task.project,
+        task: task._id,
+        resourceType: 'Task',
+        resourceId: task._id.toString(),
+        metadata: { title: payload.title.trim() }
+    });
     return getTask(task._id, currentUser);
 }
 
@@ -289,6 +351,16 @@ async function updateSubtask(taskId, subtaskId, payload, currentUser) {
     });
 
     await task.save();
+    await createAuditLog({
+        module: 'TASKS',
+        action: 'TASK_SUBTASK_UPDATED',
+        actor: currentUser._id,
+        project: task.project,
+        task: task._id,
+        resourceType: 'Task',
+        resourceId: task._id.toString(),
+        metadata: { subtaskId }
+    });
     return getTask(task._id, currentUser);
 }
 
@@ -314,6 +386,16 @@ async function deleteSubtask(taskId, subtaskId, currentUser) {
     });
 
     await task.save();
+    await createAuditLog({
+        module: 'TASKS',
+        action: 'TASK_SUBTASK_DELETED',
+        actor: currentUser._id,
+        project: task.project,
+        task: task._id,
+        resourceType: 'Task',
+        resourceId: task._id.toString(),
+        metadata: { subtaskId }
+    });
     return getTask(task._id, currentUser);
 }
 
@@ -338,6 +420,30 @@ async function moveTask(taskId, payload, currentUser) {
     });
 
     await task.save();
+    await createAuditLog({
+        module: 'TASKS',
+        action: 'TASK_MOVED',
+        actor: currentUser._id,
+        project: task.project,
+        task: task._id,
+        resourceType: 'Task',
+        resourceId: task._id.toString(),
+        metadata: {
+            fromColumnId: fromColumnId.toString(),
+            toColumnId: payload.toColumnId.toString()
+        }
+    });
+    await notifyMany(withoutActor(task.assignees, currentUser._id), {
+        type: 'TASK_MOVED',
+        title: 'Cambio de estado en tarea',
+        message: `La tarea "${task.title}" cambio de columna`,
+        relatedProject: task.project,
+        relatedTask: task._id,
+        metadata: {
+            fromColumnId: fromColumnId.toString(),
+            toColumnId: payload.toColumnId.toString()
+        }
+    });
     return getTask(task._id, currentUser);
 }
 
@@ -359,6 +465,16 @@ async function cloneTask(taskId, currentUser, overrides = {}) {
     });
 
     await clonedTask.save();
+    await createAuditLog({
+        module: 'TASKS',
+        action: 'TASK_CLONED',
+        actor: currentUser._id,
+        project: clonedTask.project,
+        task: clonedTask._id,
+        resourceType: 'Task',
+        resourceId: clonedTask._id.toString(),
+        metadata: { sourceTaskId: task._id.toString() }
+    });
     return getTask(clonedTask._id, currentUser);
 }
 
@@ -379,6 +495,24 @@ async function addComment(taskId, payload, currentUser) {
         performedBy: currentUser._id
     });
     await task.save();
+    await createAuditLog({
+        module: 'TASKS',
+        action: 'TASK_COMMENT_ADDED',
+        actor: currentUser._id,
+        project: task.project,
+        task: task._id,
+        resourceType: 'Task',
+        resourceId: task._id.toString(),
+        metadata: { contentLength: payload.content.length }
+    });
+    await notifyMany(withoutActor(task.assignees, currentUser._id), {
+        type: 'TASK_COMMENTED',
+        title: 'Nuevo comentario en tarea',
+        message: `Se agrego un comentario en la tarea "${task.title}"`,
+        relatedProject: task.project,
+        relatedTask: task._id,
+        metadata: { taskId: task._id.toString() }
+    });
     return getTask(task._id, currentUser);
 }
 
@@ -408,6 +542,16 @@ async function updateComment(taskId, commentId, payload, currentUser) {
         metadata: { commentId }
     });
     await task.save();
+    await createAuditLog({
+        module: 'TASKS',
+        action: 'TASK_COMMENT_UPDATED',
+        actor: currentUser._id,
+        project: task.project,
+        task: task._id,
+        resourceType: 'Task',
+        resourceId: task._id.toString(),
+        metadata: { commentId }
+    });
     return getTask(task._id, currentUser);
 }
 
@@ -435,6 +579,16 @@ async function deleteComment(taskId, commentId, currentUser) {
         performedBy: currentUser._id
     });
     await task.save();
+    await createAuditLog({
+        module: 'TASKS',
+        action: 'TASK_COMMENT_DELETED',
+        actor: currentUser._id,
+        project: task.project,
+        task: task._id,
+        resourceType: 'Task',
+        resourceId: task._id.toString(),
+        metadata: { commentId }
+    });
     return getTask(task._id, currentUser);
 }
 
@@ -462,6 +616,16 @@ async function addAttachments(taskId, files, currentUser) {
     });
 
     await task.save();
+    await createAuditLog({
+        module: 'TASKS',
+        action: 'TASK_ATTACHMENT_ADDED',
+        actor: currentUser._id,
+        project: task.project,
+        task: task._id,
+        resourceType: 'Task',
+        resourceId: task._id.toString(),
+        metadata: { count: files.length }
+    });
     return getTask(task._id, currentUser);
 }
 
@@ -488,6 +652,16 @@ async function deleteAttachment(taskId, attachmentId, currentUser) {
     });
 
     await task.save();
+    await createAuditLog({
+        module: 'TASKS',
+        action: 'TASK_ATTACHMENT_DELETED',
+        actor: currentUser._id,
+        project: task.project,
+        task: task._id,
+        resourceType: 'Task',
+        resourceId: task._id.toString(),
+        metadata: { attachmentId }
+    });
     return getTask(task._id, currentUser);
 }
 
@@ -510,6 +684,16 @@ async function addTimeLog(taskId, payload, currentUser) {
         metadata: { hours: payload.hours }
     });
     await task.save();
+    await createAuditLog({
+        module: 'TASKS',
+        action: 'TASK_TIME_LOG_ADDED',
+        actor: currentUser._id,
+        project: task.project,
+        task: task._id,
+        resourceType: 'Task',
+        resourceId: task._id.toString(),
+        metadata: { hours: payload.hours }
+    });
     return getTask(task._id, currentUser);
 }
 

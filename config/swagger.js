@@ -45,7 +45,31 @@ const options = {
                     properties: {
                         fullName: { type: 'string', example: 'Sebastian Quintero' },
                         avatarUrl: { type: 'string', example: 'https://example.com/avatar.png' },
-                        bio: { type: 'string', example: 'Desarrollador del proyecto' }
+                        bio: { type: 'string', example: 'Desarrollador del proyecto' },
+                        notificationPreferences: {
+                            $ref: '#/components/schemas/NotificationPreferencesRequest'
+                        }
+                    }
+                },
+                NotificationPreferencesRequest: {
+                    type: 'object',
+                    properties: {
+                        inApp: {
+                            $ref: '#/components/schemas/NotificationPreferenceChannelRequest'
+                        },
+                        email: {
+                            $ref: '#/components/schemas/NotificationPreferenceChannelRequest'
+                        }
+                    }
+                },
+                NotificationPreferenceChannelRequest: {
+                    type: 'object',
+                    properties: {
+                        projectMemberAdded: { type: 'boolean', example: true },
+                        projectArchived: { type: 'boolean', example: true },
+                        taskAssigned: { type: 'boolean', example: true },
+                        taskMoved: { type: 'boolean', example: true },
+                        taskCommented: { type: 'boolean', example: true }
                     }
                 },
                 ProjectRequest: {

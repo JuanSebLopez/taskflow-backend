@@ -3,6 +3,7 @@ const Board = require('../models/board');
 const Project = require('../models/project');
 const Task = require('../models/task');
 const AppError = require('../utils/app-error');
+const { serializeProject } = require('../serializers');
 const {
     addProjectMember,
     archiveProject,
@@ -15,22 +16,22 @@ const {
 
 const create = catchAsync(async (req, res) => {
     const project = await createProject(req.body, req.user);
-    res.status(201).json(project);
+    res.status(201).json(serializeProject(project));
 });
 
 const list = catchAsync(async (req, res) => {
     const projects = await listProjectsForUser(req.user);
-    res.json(projects);
+    res.json(projects.map(serializeProject));
 });
 
 const getById = catchAsync(async (req, res) => {
     const project = await ensureProjectAccess(req.params.id, req.user);
-    res.json(project);
+    res.json(serializeProject(project));
 });
 
 const update = catchAsync(async (req, res) => {
     const project = await updateProject(req.params.id, req.body, req.user);
-    res.json(project);
+    res.json(serializeProject(project));
 });
 
 const remove = catchAsync(async (req, res) => {
@@ -49,17 +50,17 @@ const remove = catchAsync(async (req, res) => {
 
 const addMember = catchAsync(async (req, res) => {
     const project = await addProjectMember(req.params.id, req.body.email, req.user);
-    res.json(project);
+    res.json(serializeProject(project));
 });
 
 const archive = catchAsync(async (req, res) => {
     const project = await archiveProject(req.params.id, req.user);
-    res.json(project);
+    res.json(serializeProject(project));
 });
 
 const clone = catchAsync(async (req, res) => {
     const project = await cloneProject(req.params.id, req.user);
-    res.status(201).json(project);
+    res.status(201).json(serializeProject(project));
 });
 
 module.exports = {
