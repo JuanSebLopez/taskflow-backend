@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { USER_ROLES } = require('../utils/constants');
+const { APP_THEMES, USER_ROLES } = require('../utils/constants');
 
 const NotificationPreferenceChannelSchema = new mongoose.Schema(
     {
@@ -44,6 +44,11 @@ const UserSchema = new mongoose.Schema(
             type: String,
             default: ''
         },
+        theme: {
+            type: String,
+            enum: APP_THEMES,
+            default: 'LIGHT'
+        },
         isActive: {
             type: Boolean,
             default: true
@@ -84,6 +89,7 @@ UserSchema.methods.toSafeObject = function toSafeObject() {
         role: this.role,
         avatarUrl: this.avatarUrl,
         bio: this.bio,
+        theme: this.theme,
         isActive: this.isActive,
         lastAccessAt: this.lastAccessAt,
         notificationPreferences: this.notificationPreferences,

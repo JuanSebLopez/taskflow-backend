@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/user');
 const AppError = require('../utils/app-error');
-const { USER_ROLES } = require('../utils/constants');
+const { APP_THEMES, USER_ROLES } = require('../utils/constants');
 
 async function registerUser(payload) {
     const existingUser = await User.findOne({ email: payload.email.toLowerCase() });
@@ -56,6 +56,14 @@ async function updateProfile(userId, payload) {
 
     if (payload.bio !== undefined) {
         user.bio = payload.bio;
+    }
+
+    if (payload.theme !== undefined) {
+        if (!APP_THEMES.includes(payload.theme)) {
+            throw new AppError(`theme must be one of: ${APP_THEMES.join(', ')}`, 400);
+        }
+
+        user.theme = payload.theme;
     }
 
     if (payload.notificationPreferences !== undefined) {

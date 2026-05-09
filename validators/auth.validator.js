@@ -1,3 +1,4 @@
+const { APP_THEMES } = require('../utils/constants');
 const { isNonEmptyString, isValidEmail, collectRequiredString } = require('./common.validator');
 
 function validateRegister(body) {
@@ -46,6 +47,10 @@ function validateProfileUpdate(body) {
 
     if (body.bio !== undefined && typeof body.bio !== 'string') {
         errors.push('bio must be a string');
+    }
+
+    if (body.theme !== undefined && !APP_THEMES.includes(body.theme)) {
+        errors.push(`theme must be one of: ${APP_THEMES.join(', ')}`);
     }
 
     if (body.notificationPreferences !== undefined) {

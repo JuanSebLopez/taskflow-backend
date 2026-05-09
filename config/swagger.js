@@ -46,6 +46,7 @@ const options = {
                         fullName: { type: 'string', example: 'Sebastian Quintero' },
                         avatarUrl: { type: 'string', example: 'https://example.com/avatar.png' },
                         bio: { type: 'string', example: 'Desarrollador del proyecto' },
+                        theme: { type: 'string', enum: ['LIGHT', 'DARK'], example: 'DARK' },
                         notificationPreferences: {
                             $ref: '#/components/schemas/NotificationPreferencesRequest'
                         }
@@ -271,6 +272,28 @@ const options = {
                                 dueDateFrom: { type: 'string', format: 'date-time' },
                                 dueDateTo: { type: 'string', format: 'date-time' },
                                 overdueOnly: { type: 'boolean', nullable: true, example: false }
+                            }
+                        }
+                    }
+                },
+                SystemSettingUpdateRequest: {
+                    type: 'object',
+                    properties: {
+                        platformName: { type: 'string', example: 'TaskFlow UQ' },
+                        defaultTheme: { type: 'string', enum: ['LIGHT', 'DARK'], example: 'LIGHT' },
+                        availableThemes: {
+                            type: 'array',
+                            items: { type: 'string', enum: ['LIGHT', 'DARK'] },
+                            example: ['LIGHT', 'DARK']
+                        },
+                        maxAttachmentSizeMb: { type: 'number', example: 10 },
+                        passwordPolicy: {
+                            type: 'object',
+                            properties: {
+                                minLength: { type: 'integer', example: 8 },
+                                requireUppercase: { type: 'boolean', example: true },
+                                requireNumber: { type: 'boolean', example: true },
+                                requireSpecialChar: { type: 'boolean', example: false }
                             }
                         }
                     }
