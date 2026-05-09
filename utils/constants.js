@@ -11,6 +11,7 @@ const NOTIFICATION_TYPES = [
     'TASK_COMMENTED'
 ];
 const AUDIT_MODULES = ['USERS', 'PROJECTS', 'BOARDS', 'TASKS', 'NOTIFICATIONS', 'SETTINGS', 'REPORTS'];
+const APP_THEMES = ['LIGHT', 'DARK'];
 
 const DEFAULT_BOARD_COLUMNS = [
     { title: 'Por hacer', order: 1, wipLimit: 0 },
@@ -27,5 +28,6 @@ module.exports = {
     NOTIFICATION_CHANNELS,
     NOTIFICATION_TYPES,
     AUDIT_MODULES,
+    APP_THEMES,
     DEFAULT_BOARD_COLUMNS
 };

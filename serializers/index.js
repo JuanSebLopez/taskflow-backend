@@ -63,6 +63,7 @@ function serializeUser(user) {
         role: plain.role,
         avatarUrl: plain.avatarUrl || '',
         bio: plain.bio || '',
+        theme: plain.theme || 'LIGHT',
         isActive: plain.isActive,
         lastAccessAt: plain.lastAccessAt || null,
         notificationPreferences: plain.notificationPreferences || null,
@@ -512,6 +513,39 @@ function serializeAuditLog(auditLog) {
     };
 }
 
+function serializePublicSystemSetting(settings) {
+    if (!settings) {
+        return null;
+    }
+
+    const plain = toPlain(settings);
+
+    return {
+        platformName: plain.platformName,
+        defaultTheme: plain.defaultTheme,
+        availableThemes: plain.availableThemes || [],
+        maxAttachmentSizeMb: plain.maxAttachmentSizeMb
+    };
+}
+
+function serializeSystemSetting(settings) {
+    if (!settings) {
+        return null;
+    }
+
+    const plain = toPlain(settings);
+
+    return {
+        id: toId(plain),
+        platformName: plain.platformName,
+        defaultTheme: plain.defaultTheme,
+        availableThemes: plain.availableThemes || [],
+        maxAttachmentSizeMb: plain.maxAttachmentSizeMb,
+        passwordPolicy: plain.passwordPolicy || null,
+        updatedAt: plain.updatedAt || null
+    };
+}
+
 module.exports = {
     serializeCompactUser,
     serializeUser,
@@ -527,5 +561,7 @@ module.exports = {
     serializeTaskSummary,
     serializeSavedTaskFilter,
     serializeNotification,
-    serializeAuditLog
+    serializeAuditLog,
+    serializePublicSystemSetting,
+    serializeSystemSetting
 };
