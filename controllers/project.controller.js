@@ -3,7 +3,7 @@ const Board = require('../models/board');
 const Project = require('../models/project');
 const Task = require('../models/task');
 const AppError = require('../utils/app-error');
-const { serializeProject } = require('../serializers');
+const { serializeProject, serializeProjectListItem, serializeProjectMutation } = require('../serializers');
 const {
     addProjectMember,
     archiveProject,
@@ -16,12 +16,15 @@ const {
 
 const create = catchAsync(async (req, res) => {
     const project = await createProject(req.body, req.user);
-    res.status(201).json(serializeProject(project));
+    res.status(201).json({
+        message: 'Project created successfully',
+        project: serializeProjectMutation(project)
+    });
 });
 
 const list = catchAsync(async (req, res) => {
     const projects = await listProjectsForUser(req.user);
-    res.json(projects.map(serializeProject));
+    res.json(projects.map(serializeProjectListItem));
 });
 
 const getById = catchAsync(async (req, res) => {
@@ -31,7 +34,10 @@ const getById = catchAsync(async (req, res) => {
 
 const update = catchAsync(async (req, res) => {
     const project = await updateProject(req.params.id, req.body, req.user);
-    res.json(serializeProject(project));
+    res.json({
+        message: 'Project updated successfully',
+        project: serializeProjectMutation(project)
+    });
 });
 
 const remove = catchAsync(async (req, res) => {
@@ -50,17 +56,26 @@ const remove = catchAsync(async (req, res) => {
 
 const addMember = catchAsync(async (req, res) => {
     const project = await addProjectMember(req.params.id, req.body.email, req.user);
-    res.json(serializeProject(project));
+    res.json({
+        message: 'Project member added successfully',
+        project: serializeProjectMutation(project)
+    });
 });
 
 const archive = catchAsync(async (req, res) => {
     const project = await archiveProject(req.params.id, req.user);
-    res.json(serializeProject(project));
+    res.json({
+        message: 'Project archived successfully',
+        project: serializeProjectMutation(project)
+    });
 });
 
 const clone = catchAsync(async (req, res) => {
     const project = await cloneProject(req.params.id, req.user);
-    res.status(201).json(serializeProject(project));
+    res.status(201).json({
+        message: 'Project cloned successfully',
+        project: serializeProjectMutation(project)
+    });
 });
 
 module.exports = {

@@ -108,6 +108,35 @@ function populateTaskQuery(query) {
         .populate('attachments.uploadedBy', 'fullName email');
 }
 
+async function resolveDoneColumnIds(projectId, boardId = null) {
+    const boardFilter = boardId
+        ? { _id: boardId, project: projectId }
+        : { project: projectId };
+    const boards = await Board.find(boardFilter).select('columns');
+
+    return boards.flatMap((board) =>
+        board.columns
+            .filter((column) => column.title.toLowerCase().includes('complet'))
+            .map((column) => column._id.toString())
+    );
+}
+
+function decorateTaskState(task, doneColumnIds = []) {
+    const plainTask = typeof task.toObject === 'function'
+        ? task.toObject({ virtuals: true })
+        : { ...task };
+    const columnId = plainTask.columnId?.toString?.() || plainTask.columnId;
+    const isCompleted = doneColumnIds.includes(columnId);
+    const hasDueDate = plainTask.dueDate ? new Date(plainTask.dueDate).getTime() : null;
+    const isOverdue = Boolean(hasDueDate && hasDueDate < Date.now() && !isCompleted);
+
+    return {
+        ...plainTask,
+        isCompleted,
+        isOverdue
+    };
+}
+
 async function listTasks(query, currentUser) {
     if (!query.projectId) {
         throw new AppError('projectId query parameter is required', 400);
@@ -140,7 +169,37 @@ async function listTasks(query, currentUser) {
         filter.type = query.type;
     }
 
-    return populateTaskQuery(Task.find(filter));
+    if (query.assigneeId) {
+        filter.assignees = query.assigneeId;
+    }
+
+    if (query.labelName) {
+        filter['labels.name'] = { $regex: query.labelName, $options: 'i' };
+    }
+
+    if (query.dueDateFrom || query.dueDateTo) {
+        filter.dueDate = {};
+
+        if (query.dueDateFrom) {
+            filter.dueDate.$gte = new Date(query.dueDateFrom);
+        }
+
+        if (query.dueDateTo) {
+            filter.dueDate.$lte = new Date(query.dueDateTo);
+        }
+    }
+
+    const tasks = await populateTaskQuery(Task.find(filter).sort({ createdAt: -1 }));
+    const doneColumnIds = await resolveDoneColumnIds(query.projectId, query.boardId);
+    let result = tasks.map((task) => decorateTaskState(task, doneColumnIds));
+
+    if (query.overdueOnly === 'true') {
+        result = result.filter((task) => task.isOverdue);
+    } else if (query.overdueOnly === 'false') {
+        result = result.filter((task) => !task.isOverdue);
+    }
+
+    return result;
 }
 
 async function createTask(payload, currentUser) {
@@ -194,7 +253,8 @@ async function getTask(taskId, currentUser) {
     }
 
     await ensureProjectAccess(task.project, currentUser);
-    return task;
+    const doneColumnIds = await resolveDoneColumnIds(task.project, task.board);
+    return decorateTaskState(task, doneColumnIds);
 }
 
 async function updateTask(taskId, payload, currentUser) {

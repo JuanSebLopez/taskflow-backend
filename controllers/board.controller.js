@@ -1,5 +1,5 @@
 const catchAsync = require('../utils/catch-async');
-const { serializeBoard } = require('../serializers');
+const { serializeBoard, serializeBoardMutation } = require('../serializers');
 const {
     addColumn,
     createBoard,
@@ -16,27 +16,42 @@ const getByProject = catchAsync(async (req, res) => {
 
 const create = catchAsync(async (req, res) => {
     const board = await createBoard(req.params.projectId, req.body, req.user);
-    res.status(201).json(serializeBoard(board));
+    res.status(201).json({
+        message: 'Board created successfully',
+        board: serializeBoardMutation(board)
+    });
 });
 
 const createColumn = catchAsync(async (req, res) => {
     const board = await addColumn(req.params.boardId, req.body, req.user);
-    res.json(serializeBoard(board));
+    res.json({
+        message: 'Column created successfully',
+        board: serializeBoardMutation(board)
+    });
 });
 
 const editColumn = catchAsync(async (req, res) => {
     const board = await updateColumn(req.params.boardId, req.params.columnId, req.body, req.user);
-    res.json(serializeBoard(board));
+    res.json({
+        message: 'Column updated successfully',
+        board: serializeBoardMutation(board)
+    });
 });
 
 const reorder = catchAsync(async (req, res) => {
     const board = await reorderColumns(req.params.boardId, req.body.columns, req.user);
-    res.json(serializeBoard(board));
+    res.json({
+        message: 'Columns reordered successfully',
+        board: serializeBoardMutation(board)
+    });
 });
 
 const removeColumn = catchAsync(async (req, res) => {
     const board = await deleteColumn(req.params.boardId, req.params.columnId, req.user);
-    res.json(serializeBoard(board));
+    res.json({
+        message: 'Column deleted successfully',
+        board: serializeBoardMutation(board)
+    });
 });
 
 module.exports = {

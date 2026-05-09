@@ -8,6 +8,7 @@ const auditLogRoutes = require('./routes/audit-log.routes');
 const boardRoutes = require('./routes/board.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const projectRoutes = require('./routes/project.routes');
+const taskFilterRoutes = require('./routes/task-filter.routes');
 const taskRoutes = require('./routes/task.routes');
 const userRoutes = require('./routes/user.routes');
 const { notFoundHandler, errorHandler } = require('./middlewares/error.middleware');
@@ -40,6 +41,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/boards', boardRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/task-filters', taskFilterRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 app.use(notFoundHandler);
