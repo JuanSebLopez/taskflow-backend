@@ -40,6 +40,28 @@ const options = {
                         password: { type: 'string', example: 'TaskFlow123' }
                     }
                 },
+                VerifyEmailRequest: {
+                    type: 'object',
+                    required: ['email', 'token'],
+                    properties: {
+                        email: { type: 'string', example: 'sebas@test.com' },
+                        token: { type: 'string', example: 'a1b2c3d4e5f6' }
+                    }
+                },
+                ResendVerificationRequest: {
+                    type: 'object',
+                    required: ['email'],
+                    properties: {
+                        email: { type: 'string', example: 'sebas@test.com' }
+                    }
+                },
+                RefreshTokenRequest: {
+                    type: 'object',
+                    required: ['refreshToken'],
+                    properties: {
+                        refreshToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' }
+                    }
+                },
                 ProfileUpdateRequest: {
                     type: 'object',
                     properties: {
@@ -296,6 +318,13 @@ const options = {
                                 requireSpecialChar: { type: 'boolean', example: false }
                             }
                         }
+                    }
+                },
+                SystemTestEmailRequest: {
+                    type: 'object',
+                    properties: {
+                        email: { type: 'string', example: 'sebas@test.com' },
+                        fullName: { type: 'string', example: 'Sebas Test' }
                     }
                 },
                 UserRoleRequest: {

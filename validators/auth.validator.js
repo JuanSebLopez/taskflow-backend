@@ -34,6 +34,28 @@ function validateLogin(body) {
     return errors;
 }
 
+function validateVerifyEmail(body) {
+    const errors = [];
+
+    if (!isValidEmail(body.email)) {
+        errors.push('email must be valid');
+    }
+
+    if (!isNonEmptyString(body.token)) {
+        errors.push('token is required');
+    }
+
+    return errors;
+}
+
+function validateResendVerification(body) {
+    return isValidEmail(body.email) ? [] : ['email must be valid'];
+}
+
+function validateRefreshToken(body) {
+    return isNonEmptyString(body.refreshToken) ? [] : ['refreshToken is required'];
+}
+
 function validateProfileUpdate(body) {
     const errors = [];
 
@@ -87,5 +109,8 @@ function validateProfileUpdate(body) {
 module.exports = {
     validateRegister,
     validateLogin,
+    validateVerifyEmail,
+    validateResendVerification,
+    validateRefreshToken,
     validateProfileUpdate
 };

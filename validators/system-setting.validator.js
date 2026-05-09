@@ -48,6 +48,21 @@ function validateSystemSettingUpdate(body) {
     return errors;
 }
 
+function validateSystemTestEmail(body) {
+    const errors = [];
+
+    if (body.email !== undefined && (typeof body.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email))) {
+        errors.push('email must be valid');
+    }
+
+    if (body.fullName !== undefined && (typeof body.fullName !== 'string' || !body.fullName.trim())) {
+        errors.push('fullName must be a non-empty string');
+    }
+
+    return errors;
+}
+
 module.exports = {
-    validateSystemSettingUpdate
+    validateSystemSettingUpdate,
+    validateSystemTestEmail
 };

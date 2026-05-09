@@ -2,6 +2,7 @@ const SystemSetting = require('../models/system-setting');
 const AppError = require('../utils/app-error');
 const { APP_THEMES } = require('../utils/constants');
 const { createAuditLog } = require('./audit-log.service');
+const { getEmailServiceStatus } = require('./email.service');
 
 async function ensureSettingsDocument() {
     let settings = await SystemSetting.findOne({ singletonKey: 'SYSTEM_SETTINGS' });
@@ -51,7 +52,10 @@ async function getPublicSystemSettings() {
 }
 
 async function getSystemSettings() {
-    return ensureSettingsDocument();
+    const settings = await ensureSettingsDocument();
+    const plain = settings.toObject();
+    plain.emailService = getEmailServiceStatus();
+    return plain;
 }
 
 async function updateSystemSettings(payload, currentUser) {

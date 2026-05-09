@@ -1,26 +1,76 @@
 const catchAsync = require('../utils/catch-async');
 const { serializeUser } = require('../serializers');
-const { signAccessToken } = require('../utils/jwt');
-const { authenticateUser, registerUser, logoutUser, updateProfile } = require('../services/user.service');
+const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../utils/jwt');
+const { authenticateUser, registerUser, verifyUserEmail, resendVerificationEmail, logoutUser, updateProfile } = require('../services/user.service');
+const User = require('../models/user');
+const AppError = require('../utils/app-error');
 
 const register = catchAsync(async (req, res) => {
     const user = await registerUser(req.body);
-    const token = signAccessToken(user);
 
     res.status(201).json({
-        message: 'User registered successfully',
-        token,
+        message: 'User registered successfully. Please verify your email before login.',
         user: serializeUser(user)
     });
 });
 
 const login = catchAsync(async (req, res) => {
     const user = await authenticateUser(req.body.email, req.body.password);
-    const token = signAccessToken(user);
+    const accessToken = signAccessToken(user);
+    const refreshToken = signRefreshToken(user);
 
     res.json({
         message: 'Login successful',
-        token,
+        token: accessToken,
+        accessToken,
+        refreshToken,
+        user: serializeUser(user)
+    });
+});
+
+const verifyEmail = catchAsync(async (req, res) => {
+    const user = await verifyUserEmail(req.body.email, req.body.token);
+    const accessToken = signAccessToken(user);
+    const refreshToken = signRefreshToken(user);
+
+    res.json({
+        message: 'Email verified successfully',
+        token: accessToken,
+        accessToken,
+        refreshToken,
+        user: serializeUser(user)
+    });
+});
+
+const resendVerification = catchAsync(async (req, res) => {
+    await resendVerificationEmail(req.body.email);
+    res.json({ message: 'Verification email sent successfully' });
+});
+
+const refresh = catchAsync(async (req, res) => {
+    const payload = verifyRefreshToken(req.body.refreshToken);
+    const user = await User.findById(payload.sub);
+
+    if (!user || !user.isActive) {
+        throw new AppError('User not available', 401);
+    }
+
+    if (!user.isEmailVerified) {
+        throw new AppError('Email verification is required before refreshing session', 403);
+    }
+
+    if (user.sessionVersion !== payload.sessionVersion) {
+        throw new AppError('Session expired. Please login again.', 401);
+    }
+
+    const accessToken = signAccessToken(user);
+    const refreshToken = signRefreshToken(user);
+
+    res.json({
+        message: 'Session refreshed successfully',
+        token: accessToken,
+        accessToken,
+        refreshToken,
         user: serializeUser(user)
     });
 });
@@ -45,6 +95,9 @@ const updateMe = catchAsync(async (req, res) => {
 module.exports = {
     register,
     login,
+    verifyEmail,
+    resendVerification,
+    refresh,
     logout,
     me,
     updateMe
