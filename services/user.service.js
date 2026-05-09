@@ -58,6 +58,23 @@ async function updateProfile(userId, payload) {
         user.bio = payload.bio;
     }
 
+    if (payload.notificationPreferences !== undefined) {
+        const nextPreferences = {
+            inApp: {
+                ...user.notificationPreferences?.inApp?.toObject?.(),
+                ...(user.notificationPreferences?.inApp || {}),
+                ...(payload.notificationPreferences.inApp || {})
+            },
+            email: {
+                ...user.notificationPreferences?.email?.toObject?.(),
+                ...(user.notificationPreferences?.email || {}),
+                ...(payload.notificationPreferences.email || {})
+            }
+        };
+
+        user.notificationPreferences = nextPreferences;
+    }
+
     await user.save();
     return user;
 }

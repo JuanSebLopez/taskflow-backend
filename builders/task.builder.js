@@ -13,7 +13,8 @@ class TaskBuilder {
             createdBy: payload.createdBy,
             assignees: Array.isArray(payload.assignees) ? payload.assignees : [],
             labels: Array.isArray(payload.labels) ? payload.labels : [],
-            subtasks: Array.isArray(payload.subtasks) ? payload.subtasks : []
+            subtasks: Array.isArray(payload.subtasks) ? payload.subtasks : [],
+            history: Array.isArray(payload.history) ? payload.history : []
         };
     }
 
@@ -34,12 +35,29 @@ class TaskBuilder {
     }
 
     withAssignees(assignees = []) {
-        this.task.assignees = assignees;
+        this.task.assignees = Array.isArray(assignees) ? [...assignees] : [];
+        return this;
+    }
+
+    withHistory(history = []) {
+        this.task.history = history.map((entry) => ({
+            ...entry,
+            metadata: entry.metadata ? { ...entry.metadata } : {}
+        }));
         return this;
     }
 
     build() {
-        return { ...this.task };
+        return {
+            ...this.task,
+            assignees: [...this.task.assignees],
+            labels: this.task.labels.map((label) => ({ ...label })),
+            subtasks: this.task.subtasks.map((subtask) => ({ ...subtask })),
+            history: this.task.history.map((entry) => ({
+                ...entry,
+                metadata: entry.metadata ? { ...entry.metadata } : {}
+            }))
+        };
     }
 }
 

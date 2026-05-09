@@ -1,4 +1,5 @@
 const catchAsync = require('../utils/catch-async');
+const { serializeUser } = require('../serializers');
 const { signAccessToken } = require('../utils/jwt');
 const { authenticateUser, registerUser, logoutUser, updateProfile } = require('../services/user.service');
 
@@ -9,7 +10,7 @@ const register = catchAsync(async (req, res) => {
     res.status(201).json({
         message: 'User registered successfully',
         token,
-        user: user.toSafeObject()
+        user: serializeUser(user)
     });
 });
 
@@ -20,7 +21,7 @@ const login = catchAsync(async (req, res) => {
     res.json({
         message: 'Login successful',
         token,
-        user: user.toSafeObject()
+        user: serializeUser(user)
     });
 });
 
@@ -30,14 +31,14 @@ const logout = catchAsync(async (req, res) => {
 });
 
 const me = (req, res) => {
-    res.json(req.user.toSafeObject());
+    res.json(serializeUser(req.user));
 };
 
 const updateMe = catchAsync(async (req, res) => {
     const user = await updateProfile(req.user._id, req.body);
     res.json({
         message: 'Profile updated successfully',
-        user: user.toSafeObject()
+        user: serializeUser(user)
     });
 });
 

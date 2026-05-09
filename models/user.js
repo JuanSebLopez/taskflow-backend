@@ -1,6 +1,17 @@
 const mongoose = require('mongoose');
 const { USER_ROLES } = require('../utils/constants');
 
+const NotificationPreferenceChannelSchema = new mongoose.Schema(
+    {
+        projectMemberAdded: { type: Boolean, default: true },
+        projectArchived: { type: Boolean, default: true },
+        taskAssigned: { type: Boolean, default: true },
+        taskMoved: { type: Boolean, default: true },
+        taskCommented: { type: Boolean, default: true }
+    },
+    { _id: false }
+);
+
 const UserSchema = new mongoose.Schema(
     {
         fullName: {
@@ -44,6 +55,22 @@ const UserSchema = new mongoose.Schema(
         lastAccessAt: {
             type: Date,
             default: null
+        },
+        notificationPreferences: {
+            inApp: {
+                type: NotificationPreferenceChannelSchema,
+                default: () => ({})
+            },
+            email: {
+                type: NotificationPreferenceChannelSchema,
+                default: () => ({
+                    projectMemberAdded: false,
+                    projectArchived: false,
+                    taskAssigned: false,
+                    taskMoved: false,
+                    taskCommented: false
+                })
+            }
         }
     },
     { timestamps: true }
@@ -59,6 +86,7 @@ UserSchema.methods.toSafeObject = function toSafeObject() {
         bio: this.bio,
         isActive: this.isActive,
         lastAccessAt: this.lastAccessAt,
+        notificationPreferences: this.notificationPreferences,
         createdAt: this.createdAt,
         updatedAt: this.updatedAt
     };
