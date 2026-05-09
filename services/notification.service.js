@@ -1,6 +1,7 @@
 const Notification = require('../models/notification');
 const User = require('../models/user');
 const AppError = require('../utils/app-error');
+const { sendNotificationEmail, getEmailServiceStatus } = require('./email.service');
 
 const NOTIFICATION_PREFERENCE_KEYS = {
     PROJECT_MEMBER_ADDED: 'projectMemberAdded',
@@ -27,22 +28,33 @@ async function createNotification(payload) {
         return null;
     }
 
-    const channel = payload.channel || 'inApp';
+    let createdNotification = null;
 
-    if (!shouldSendNotification(recipient, payload.type, channel)) {
-        return null;
+    if (shouldSendNotification(recipient, payload.type, 'inApp')) {
+        createdNotification = await Notification.create({
+            recipient: recipient._id,
+            type: payload.type,
+            channel: 'IN_APP',
+            title: payload.title,
+            message: payload.message,
+            relatedProject: payload.relatedProject || null,
+            relatedTask: payload.relatedTask || null,
+            metadata: payload.metadata || {}
+        });
     }
 
-    return Notification.create({
-        recipient: recipient._id,
-        type: payload.type,
-        channel: channel === 'email' ? 'EMAIL' : 'IN_APP',
-        title: payload.title,
-        message: payload.message,
-        relatedProject: payload.relatedProject || null,
-        relatedTask: payload.relatedTask || null,
-        metadata: payload.metadata || {}
-    });
+    if (shouldSendNotification(recipient, payload.type, 'email') && getEmailServiceStatus().configured) {
+        try {
+            await sendNotificationEmail({
+                ...payload,
+                recipient
+            });
+        } catch (error) {
+            console.error('Failed to send notification email:', error.message);
+        }
+    }
+
+    return createdNotification;
 }
 
 async function notifyMany(recipientIds, payload) {

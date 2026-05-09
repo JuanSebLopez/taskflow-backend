@@ -5,6 +5,7 @@ const {
     getSystemSettings,
     updateSystemSettings
 } = require('../services/system-setting.service');
+const { sendTestEmail } = require('../services/email.service');
 
 const getPublic = catchAsync(async (req, res) => {
     const settings = await getPublicSystemSettings();
@@ -24,8 +25,26 @@ const update = catchAsync(async (req, res) => {
     });
 });
 
+const sendEmailTest = catchAsync(async (req, res) => {
+    const target = {
+        email: req.body.email || req.user.email,
+        fullName: req.body.fullName || req.user.fullName
+    };
+
+    await sendTestEmail(target);
+
+    res.json({
+        message: 'Test email sent successfully',
+        target: {
+            email: target.email,
+            fullName: target.fullName || ''
+        }
+    });
+});
+
 module.exports = {
     getPublic,
     getAdmin,
-    update
+    update,
+    sendEmailTest
 };

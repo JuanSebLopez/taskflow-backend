@@ -53,6 +53,18 @@ const UserSchema = new mongoose.Schema(
             type: Boolean,
             default: true
         },
+        isEmailVerified: {
+            type: Boolean,
+            default: false
+        },
+        emailVerificationTokenHash: {
+            type: String,
+            default: null
+        },
+        emailVerificationExpiresAt: {
+            type: Date,
+            default: null
+        },
         sessionVersion: {
             type: Number,
             default: 1
@@ -91,6 +103,7 @@ UserSchema.methods.toSafeObject = function toSafeObject() {
         bio: this.bio,
         theme: this.theme,
         isActive: this.isActive,
+        isEmailVerified: this.isEmailVerified,
         lastAccessAt: this.lastAccessAt,
         notificationPreferences: this.notificationPreferences,
         createdAt: this.createdAt,

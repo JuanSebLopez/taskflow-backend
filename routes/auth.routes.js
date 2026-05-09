@@ -2,7 +2,14 @@ const express = require('express');
 const controller = require('../controllers/auth.controller');
 const { protect } = require('../middlewares/auth.middleware');
 const validate = require('../middlewares/validate.middleware');
-const { validateLogin, validateProfileUpdate, validateRegister } = require('../validators/auth.validator');
+const {
+    validateLogin,
+    validateProfileUpdate,
+    validateRefreshToken,
+    validateRegister,
+    validateResendVerification,
+    validateVerifyEmail
+} = require('../validators/auth.validator');
 
 const router = express.Router();
 
@@ -25,6 +32,40 @@ const router = express.Router();
 router.post('/register', validate({ body: validateRegister }), controller.register);
 /**
  * @swagger
+ * /api/auth/verify-email:
+ *   post:
+ *     summary: Verificar correo del usuario
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/VerifyEmailRequest'
+ *     responses:
+ *       200:
+ *         description: Correo verificado
+ */
+router.post('/verify-email', validate({ body: validateVerifyEmail }), controller.verifyEmail);
+/**
+ * @swagger
+ * /api/auth/resend-verification:
+ *   post:
+ *     summary: Reenviar correo de verificacion
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ResendVerificationRequest'
+ *     responses:
+ *       200:
+ *         description: Correo reenviado
+ */
+router.post('/resend-verification', validate({ body: validateResendVerification }), controller.resendVerification);
+/**
+ * @swagger
  * /api/auth/login:
  *   post:
  *     summary: Iniciar sesion
@@ -40,6 +81,23 @@ router.post('/register', validate({ body: validateRegister }), controller.regist
  *         description: Login correcto
  */
 router.post('/login', validate({ body: validateLogin }), controller.login);
+/**
+ * @swagger
+ * /api/auth/refresh:
+ *   post:
+ *     summary: Renovar sesion con refresh token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RefreshTokenRequest'
+ *     responses:
+ *       200:
+ *         description: Sesion renovada
+ */
+router.post('/refresh', validate({ body: validateRefreshToken }), controller.refresh);
 /**
  * @swagger
  * /api/auth/logout:

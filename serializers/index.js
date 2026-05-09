@@ -65,6 +65,7 @@ function serializeUser(user) {
         bio: plain.bio || '',
         theme: plain.theme || 'LIGHT',
         isActive: plain.isActive,
+        isEmailVerified: Boolean(plain.isEmailVerified),
         lastAccessAt: plain.lastAccessAt || null,
         notificationPreferences: plain.notificationPreferences || null,
         createdAt: plain.createdAt || null,
@@ -542,6 +543,7 @@ function serializeSystemSetting(settings) {
         availableThemes: plain.availableThemes || [],
         maxAttachmentSizeMb: plain.maxAttachmentSizeMb,
         passwordPolicy: plain.passwordPolicy || null,
+        emailService: plain.emailService || null,
         updatedAt: plain.updatedAt || null
     };
 }
