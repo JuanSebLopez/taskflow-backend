@@ -1,21 +1,9 @@
 const catchAsync = require('../utils/catch-async');
-const Board = require('../models/board');
-const Project = require('../models/project');
-const Task = require('../models/task');
-const AppError = require('../utils/app-error');
 const { serializeProject, serializeProjectListItem, serializeProjectMutation } = require('../serializers');
-const {
-    addProjectMember,
-    archiveProject,
-    cloneProject,
-    createProject,
-    ensureProjectAccess,
-    listProjectsForUser,
-    updateProject
-} = require('../services/project.service');
+const projectFacade = require('../services/facades/project.facade');
 
 const create = catchAsync(async (req, res) => {
-    const project = await createProject(req.body, req.user);
+    const project = await projectFacade.createProjectWorkspace(req.body, req.user);
     res.status(201).json({
         message: 'Project created successfully',
         project: serializeProjectMutation(project)
@@ -23,17 +11,17 @@ const create = catchAsync(async (req, res) => {
 });
 
 const list = catchAsync(async (req, res) => {
-    const projects = await listProjectsForUser(req.user);
+    const projects = await projectFacade.listAccessibleProjects(req.user);
     res.json(projects.map(serializeProjectListItem));
 });
 
 const getById = catchAsync(async (req, res) => {
-    const project = await ensureProjectAccess(req.params.id, req.user);
+    const project = await projectFacade.getProjectDetails(req.params.id, req.user);
     res.json(serializeProject(project));
 });
 
 const update = catchAsync(async (req, res) => {
-    const project = await updateProject(req.params.id, req.body, req.user);
+    const project = await projectFacade.updateProjectDetails(req.params.id, req.body, req.user);
     res.json({
         message: 'Project updated successfully',
         project: serializeProjectMutation(project)
@@ -41,21 +29,12 @@ const update = catchAsync(async (req, res) => {
 });
 
 const remove = catchAsync(async (req, res) => {
-    const project = await ensureProjectAccess(req.params.id, req.user);
-    const canDelete = req.user.role === 'ADMIN' || project.owner.toString() === req.user._id.toString();
-
-    if (!canDelete) {
-        throw new AppError('Only the owner or ADMIN can delete the project', 403);
-    }
-
-    await Task.deleteMany({ project: project._id });
-    await Board.deleteMany({ project: project._id });
-    await Project.findByIdAndDelete(project._id);
+    await projectFacade.deleteProjectWorkspace(req.params.id, req.user);
     res.json({ message: 'Project deleted successfully' });
 });
 
 const addMember = catchAsync(async (req, res) => {
-    const project = await addProjectMember(req.params.id, req.body.email, req.user);
+    const project = await projectFacade.addMemberToProject(req.params.id, req.body.email, req.user);
     res.json({
         message: 'Project member added successfully',
         project: serializeProjectMutation(project)
@@ -63,7 +42,7 @@ const addMember = catchAsync(async (req, res) => {
 });
 
 const archive = catchAsync(async (req, res) => {
-    const project = await archiveProject(req.params.id, req.user);
+    const project = await projectFacade.archiveProjectWorkspace(req.params.id, req.user);
     res.json({
         message: 'Project archived successfully',
         project: serializeProjectMutation(project)
@@ -71,7 +50,7 @@ const archive = catchAsync(async (req, res) => {
 });
 
 const clone = catchAsync(async (req, res) => {
-    const project = await cloneProject(req.params.id, req.user);
+    const project = await projectFacade.cloneProjectWorkspace(req.params.id, req.user);
     res.status(201).json({
         message: 'Project cloned successfully',
         project: serializeProjectMutation(project)
