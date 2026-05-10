@@ -21,7 +21,6 @@ const login = catchAsync(async (req, res) => {
 
     res.json({
         message: 'Login successful',
-        token: accessToken,
         accessToken,
         refreshToken,
         user: serializeUser(user)
@@ -35,7 +34,6 @@ const verifyEmail = catchAsync(async (req, res) => {
 
     res.json({
         message: 'Email verified successfully',
-        token: accessToken,
         accessToken,
         refreshToken,
         user: serializeUser(user)
@@ -68,7 +66,6 @@ const refresh = catchAsync(async (req, res) => {
 
     res.json({
         message: 'Session refreshed successfully',
-        token: accessToken,
         accessToken,
         refreshToken,
         user: serializeUser(user)
