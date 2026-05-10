@@ -26,7 +26,14 @@ const upload = multer({
 
 function handleUploadErrors(err, req, res, next) {
     if (err instanceof multer.MulterError) {
-        return next(new AppError(err.code === 'LIMIT_FILE_SIZE' ? 'Each attachment must be 10 MB or smaller' : err.message, 400));
+        return next(
+            new AppError(
+                err.code === 'LIMIT_FILE_SIZE' ? 'Each attachment must be 10 MB or smaller' : err.message,
+                400,
+                { multerCode: err.code },
+                err.code === 'LIMIT_FILE_SIZE' ? 'FILE_TOO_LARGE' : 'UPLOAD_ERROR'
+            )
+        );
     }
 
     return next(err);

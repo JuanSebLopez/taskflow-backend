@@ -17,7 +17,7 @@ function validate(schema) {
         }
 
         if (errors.length) {
-            return next(new AppError('Validation failed', 400, errors));
+            return next(new AppError('Validation failed', 400, errors, 'VALIDATION_ERROR'));
         }
 
         next();

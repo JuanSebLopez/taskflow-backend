@@ -1,8 +1,8 @@
 const { AUDIT_MODULES } = require('../utils/constants');
-const { collectObjectId } = require('./common.validator');
+const { collectAllowedFields, collectObjectId } = require('./common.validator');
 
 function validateAuditLogQuery(query) {
-    const errors = [];
+    const errors = collectAllowedFields(query, ['projectId', 'taskId', 'actorId', 'module', 'action'], 'query');
 
     if (query.projectId) {
         const error = collectObjectId(query, 'projectId', 'projectId');
@@ -27,6 +27,10 @@ function validateAuditLogQuery(query) {
 
     if (query.module && !AUDIT_MODULES.includes(query.module)) {
         errors.push(`module must be one of: ${AUDIT_MODULES.join(', ')}`);
+    }
+
+    if (query.action !== undefined && (typeof query.action !== 'string' || !query.action.trim())) {
+        errors.push('action must be a non-empty string');
     }
 
     return errors;

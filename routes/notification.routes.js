@@ -2,7 +2,7 @@ const express = require('express');
 const controller = require('../controllers/notification.controller');
 const { protect } = require('../middlewares/auth.middleware');
 const validate = require('../middlewares/validate.middleware');
-const { validateNotificationId } = require('../validators/notification.validator');
+const { validateNotificationId, validateNotificationListQuery } = require('../validators/notification.validator');
 
 const router = express.Router();
 
@@ -29,7 +29,7 @@ router.use(protect);
  *       200:
  *         description: Lista de notificaciones
  */
-router.get('/', controller.list);
+router.get('/', validate({ query: validateNotificationListQuery }), controller.list);
 /**
  * @swagger
  * /api/notifications/read-all:

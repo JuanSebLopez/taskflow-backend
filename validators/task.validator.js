@@ -1,12 +1,44 @@
 const { TASK_PRIORITIES, TASK_TYPES } = require('../utils/constants');
-const { collectObjectId, collectRequiredString, isPositiveNumber, isValidObjectId } = require('./common.validator');
+const {
+    collectAllowedFields,
+    collectDateRange,
+    collectObjectId,
+    collectRequiredAtLeastOneField,
+    collectRequiredString,
+    collectValidDate,
+    isPositiveNumber,
+    isValidDateInput,
+    isValidObjectId
+} = require('./common.validator');
 
-function isValidDateInput(value) {
-    return typeof value === 'string' && !Number.isNaN(Date.parse(value));
-}
+const TASK_CREATE_FIELDS = [
+    'title',
+    'description',
+    'priority',
+    'type',
+    'dueDate',
+    'estimatedHours',
+    'project',
+    'board',
+    'columnId',
+    'labels',
+    'assignees',
+    'subtasks'
+];
+const TASK_UPDATE_FIELDS = [
+    'title',
+    'description',
+    'priority',
+    'type',
+    'dueDate',
+    'estimatedHours',
+    'labels',
+    'assignees',
+    'subtasks'
+];
 
 function validateTaskCreate(body) {
-    const errors = [];
+    const errors = collectAllowedFields(body, TASK_CREATE_FIELDS);
     const titleError = collectRequiredString(body, 'title', 'title');
 
     if (titleError) {
@@ -30,6 +62,11 @@ function validateTaskCreate(body) {
 
     if (body.estimatedHours !== undefined && (!Number.isFinite(body.estimatedHours) || body.estimatedHours < 0)) {
         errors.push('estimatedHours must be a number greater than or equal to 0');
+    }
+
+    const dueDateError = collectValidDate(body, 'dueDate', 'dueDate');
+    if (dueDateError) {
+        errors.push(dueDateError);
     }
 
     if (body.assignees !== undefined && !Array.isArray(body.assignees)) {
@@ -60,7 +97,10 @@ function validateTaskCreate(body) {
 }
 
 function validateTaskUpdate(body) {
-    const errors = [];
+    const errors = [
+        ...collectAllowedFields(body, TASK_UPDATE_FIELDS),
+        ...collectRequiredAtLeastOneField(body, TASK_UPDATE_FIELDS, 'At least one task field must be provided')
+    ];
 
     if (body.title !== undefined && collectRequiredString(body, 'title', 'title')) {
         errors.push('title cannot be empty');
@@ -76,6 +116,15 @@ function validateTaskUpdate(body) {
 
     if (body.assignees !== undefined && !Array.isArray(body.assignees)) {
         errors.push('assignees must be an array of user ids');
+    }
+
+    if (body.estimatedHours !== undefined && (!Number.isFinite(body.estimatedHours) || body.estimatedHours < 0)) {
+        errors.push('estimatedHours must be a number greater than or equal to 0');
+    }
+
+    const dueDateError = collectValidDate(body, 'dueDate', 'dueDate');
+    if (dueDateError) {
+        errors.push(dueDateError);
     }
 
     if (Array.isArray(body.assignees)) {
@@ -99,13 +148,29 @@ function validateTaskId(params) {
 }
 
 function validateMoveTask(body) {
+    const errors = [
+        ...collectAllowedFields(body, ['toColumnId']),
+        ...collectRequiredAtLeastOneField(body, ['toColumnId'], 'toColumnId is required')
+    ];
     const error = collectObjectId(body, 'toColumnId', 'toColumnId');
-    return error ? [error] : [];
+    if (error) {
+        errors.push(error);
+    }
+
+    return errors;
 }
 
 function validateComment(body) {
+    const errors = [
+        ...collectAllowedFields(body, ['content']),
+        ...collectRequiredAtLeastOneField(body, ['content'], 'content is required')
+    ];
     const error = collectRequiredString(body, 'content', 'content');
-    return error ? [error] : [];
+    if (error) {
+        errors.push(error);
+    }
+
+    return errors;
 }
 
 function validateCommentParams(params) {
@@ -125,23 +190,32 @@ function validateCommentParams(params) {
 }
 
 function validateTimeLog(body) {
+    const errors = [
+        ...collectAllowedFields(body, ['hours', 'note']),
+        ...collectRequiredAtLeastOneField(body, ['hours', 'note'], 'At least one time log field must be provided')
+    ];
+
     if (!isPositiveNumber(body.hours)) {
-        return ['hours must be a positive number'];
+        errors.push('hours must be a positive number');
     }
 
     if (body.note !== undefined && typeof body.note !== 'string') {
-        return ['note must be a string'];
+        errors.push('note must be a string');
     }
 
-    return [];
+    return errors;
 }
 
 function validateAssignees(body) {
-    if (!Array.isArray(body.assignees)) {
-        return ['assignees must be an array of user ids'];
-    }
+    const errors = [
+        ...collectAllowedFields(body, ['assignees']),
+        ...collectRequiredAtLeastOneField(body, ['assignees'], 'assignees is required')
+    ];
 
-    const errors = [];
+    if (!Array.isArray(body.assignees)) {
+        errors.push('assignees must be an array of user ids');
+        return errors;
+    }
 
     body.assignees.forEach((assigneeId, index) => {
         if (!isValidObjectId(assigneeId)) {
@@ -153,12 +227,24 @@ function validateAssignees(body) {
 }
 
 function validateSubtaskCreate(body) {
+    const errors = collectAllowedFields(body, ['title', 'isCompleted']);
     const error = collectRequiredString(body, 'title', 'title');
-    return error ? [error] : [];
+    if (error) {
+        errors.push(error);
+    }
+
+    if (body.isCompleted !== undefined && typeof body.isCompleted !== 'boolean') {
+        errors.push('isCompleted must be a boolean');
+    }
+
+    return errors;
 }
 
 function validateSubtaskUpdate(body) {
-    const errors = [];
+    const errors = [
+        ...collectAllowedFields(body, ['title', 'isCompleted']),
+        ...collectRequiredAtLeastOneField(body, ['title', 'isCompleted'], 'At least one subtask field must be provided')
+    ];
 
     if (body.title !== undefined && collectRequiredString(body, 'title', 'title')) {
         errors.push('title cannot be empty');
@@ -195,6 +281,9 @@ function validateAttachmentParams(params) {
 
 function validateTaskListQuery(query) {
     const errors = [];
+    const allowedQueryFields = ['projectId', 'boardId', 'columnId', 'search', 'priority', 'type', 'assigneeId', 'labelName', 'dueDateFrom', 'dueDateTo', 'overdueOnly'];
+
+    errors.push(...collectAllowedFields(query, allowedQueryFields, 'query'));
 
     const projectIdError = collectObjectId(query, 'projectId', 'projectId');
     if (projectIdError) {
@@ -223,6 +312,11 @@ function validateTaskListQuery(query) {
             errors.push(`${field} must be a valid ISO date`);
         }
     });
+
+    const dateRangeError = collectDateRange(query.dueDateFrom, query.dueDateTo, 'dueDateFrom', 'dueDateTo');
+    if (dateRangeError) {
+        errors.push(dateRangeError);
+    }
 
     if (query.overdueOnly !== undefined && !['true', 'false'].includes(String(query.overdueOnly))) {
         errors.push('overdueOnly must be true or false');

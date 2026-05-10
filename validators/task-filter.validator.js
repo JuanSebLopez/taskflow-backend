@@ -1,12 +1,14 @@
 const { TASK_PRIORITIES, TASK_TYPES } = require('../utils/constants');
-const { collectObjectId, collectRequiredString } = require('./common.validator');
-
-function isValidDateInput(value) {
-    return typeof value === 'string' && !Number.isNaN(Date.parse(value));
-}
+const {
+    collectAllowedFields,
+    collectDateRange,
+    collectObjectId,
+    collectRequiredString,
+    isValidDateInput
+} = require('./common.validator');
 
 function validateTaskFilterCreate(body) {
-    const errors = [];
+    const errors = collectAllowedFields(body, ['name', 'projectId', 'criteria']);
 
     const nameError = collectRequiredString(body, 'name', 'name');
     if (nameError) {
@@ -22,6 +24,8 @@ function validateTaskFilterCreate(body) {
         errors.push('criteria must be an object');
         return errors;
     }
+
+    errors.push(...collectAllowedFields(body.criteria, ['boardId', 'columnId', 'assigneeId', 'priority', 'type', 'labelName', 'search', 'dueDateFrom', 'dueDateTo', 'overdueOnly'], 'criteria'));
 
     ['boardId', 'columnId', 'assigneeId'].forEach((field) => {
         if (body.criteria[field]) {
@@ -46,6 +50,11 @@ function validateTaskFilterCreate(body) {
         }
     });
 
+    const dateRangeError = collectDateRange(body.criteria.dueDateFrom, body.criteria.dueDateTo, 'criteria.dueDateFrom', 'criteria.dueDateTo');
+    if (dateRangeError) {
+        errors.push(dateRangeError);
+    }
+
     if (body.criteria.overdueOnly !== undefined && typeof body.criteria.overdueOnly !== 'boolean') {
         errors.push('criteria.overdueOnly must be a boolean');
     }
@@ -59,12 +68,19 @@ function validateTaskFilterId(params) {
 }
 
 function validateTaskFilterListQuery(query) {
+    const errors = collectAllowedFields(query, ['projectId'], 'query');
+
     if (!query.projectId) {
-        return ['projectId is required'];
+        errors.push('projectId is required');
+        return errors;
     }
 
     const error = collectObjectId(query, 'projectId', 'projectId');
-    return error ? [error] : [];
+    if (error) {
+        errors.push(error);
+    }
+
+    return errors;
 }
 
 module.exports = {

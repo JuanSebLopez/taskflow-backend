@@ -1,7 +1,17 @@
 const Board = require('../models/board');
 const Task = require('../models/task');
 const AppError = require('../utils/app-error');
-const { ensureProjectAccess, ensureProjectWritable } = require('./project.service');
+const { canManageProjectBoards, ensureProjectAccess, ensureProjectWritable } = require('./project.service');
+
+async function ensureBoardManagementAccess(projectId, currentUser) {
+    const project = await ensureProjectWritable(projectId, currentUser);
+
+    if (!canManageProjectBoards(project, currentUser)) {
+        throw new AppError('Only the project owner, a PROJECT_MANAGER member, or ADMIN can manage boards', 403);
+    }
+
+    return project;
+}
 
 async function getBoardByProject(projectId, currentUser) {
     await ensureProjectAccess(projectId, currentUser);
@@ -9,7 +19,7 @@ async function getBoardByProject(projectId, currentUser) {
 }
 
 async function createBoard(projectId, payload, currentUser) {
-    const project = await ensureProjectWritable(projectId, currentUser);
+    const project = await ensureBoardManagementAccess(projectId, currentUser);
 
     return Board.create({
         name: payload.name || 'Nuevo tablero',
@@ -25,7 +35,7 @@ async function addColumn(boardId, payload, currentUser) {
         throw new AppError('Board not found', 404);
     }
 
-    await ensureProjectWritable(board.project, currentUser);
+    await ensureBoardManagementAccess(board.project, currentUser);
     board.columns.push({
         title: payload.title,
         order: payload.order || board.columns.length + 1,
@@ -43,7 +53,7 @@ async function updateColumn(boardId, columnId, payload, currentUser) {
         throw new AppError('Board not found', 404);
     }
 
-    await ensureProjectWritable(board.project, currentUser);
+    await ensureBoardManagementAccess(board.project, currentUser);
     const column = board.columns.id(columnId);
 
     if (!column) {
@@ -73,7 +83,7 @@ async function reorderColumns(boardId, columns, currentUser) {
         throw new AppError('Board not found', 404);
     }
 
-    await ensureProjectWritable(board.project, currentUser);
+    await ensureBoardManagementAccess(board.project, currentUser);
 
     columns.forEach((item) => {
         const column = board.columns.id(item.columnId);
@@ -93,7 +103,7 @@ async function deleteColumn(boardId, columnId, currentUser) {
         throw new AppError('Board not found', 404);
     }
 
-    await ensureProjectWritable(board.project, currentUser);
+    await ensureBoardManagementAccess(board.project, currentUser);
 
     const tasksInColumn = await Task.countDocuments({ board: board._id, columnId });
 

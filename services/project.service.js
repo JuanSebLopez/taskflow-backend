@@ -7,6 +7,30 @@ const { DEFAULT_BOARD_COLUMNS } = require('../utils/constants');
 const { createAuditLog } = require('./audit-log.service');
 const { createNotification, notifyMany } = require('./notification.service');
 
+function isSystemAdmin(user) {
+    return user.role === 'ADMIN';
+}
+
+function isSystemProjectManager(user) {
+    return user.role === 'PROJECT_MANAGER';
+}
+
+function isProjectOwner(project, user) {
+    return project.owner.toString() === user._id.toString();
+}
+
+function isProjectMember(project, user) {
+    return project.members.some((member) => member.user.toString() === user._id.toString());
+}
+
+function canManageProjectBoards(project, user) {
+    return isSystemAdmin(user) || isProjectOwner(project, user) || (isSystemProjectManager(user) && isProjectMember(project, user));
+}
+
+function canCoordinateProjectTasks(project, user) {
+    return canManageProjectBoards(project, user);
+}
+
 async function ensureProjectAccess(projectId, user) {
     const project = await Project.findById(projectId);
 
@@ -14,9 +38,9 @@ async function ensureProjectAccess(projectId, user) {
         throw new AppError('Project not found', 404);
     }
 
-    const isOwner = project.owner.toString() === user._id.toString();
-    const isMember = project.members.some((member) => member.user.toString() === user._id.toString());
-    const isAdmin = user.role === 'ADMIN';
+    const isOwner = isProjectOwner(project, user);
+    const isMember = isProjectMember(project, user);
+    const isAdmin = isSystemAdmin(user);
 
     if (!isOwner && !isMember && !isAdmin) {
         throw new AppError('You do not have access to this project', 403);
@@ -103,7 +127,7 @@ async function listProjectsForUser(currentUser) {
 
 async function updateProject(projectId, payload, currentUser) {
     const project = await ensureProjectAccess(projectId, currentUser);
-    const canEdit = currentUser.role === 'ADMIN' || project.owner.toString() === currentUser._id.toString();
+    const canEdit = isSystemAdmin(currentUser) || isProjectOwner(project, currentUser);
     const previousStatus = project.status;
 
     if (!canEdit) {
@@ -156,7 +180,7 @@ async function archiveProject(projectId, currentUser) {
 
 async function addProjectMember(projectId, email, currentUser) {
     const project = await ensureProjectAccess(projectId, currentUser);
-    const canManageMembers = currentUser.role === 'ADMIN' || project.owner.toString() === currentUser._id.toString();
+    const canManageMembers = isSystemAdmin(currentUser) || isProjectOwner(project, currentUser);
 
     if (!canManageMembers) {
         throw new AppError('Only the owner or ADMIN can invite members', 403);
@@ -236,6 +260,12 @@ async function cloneProject(projectId, currentUser) {
 module.exports = {
     ensureProjectAccess,
     ensureProjectWritable,
+    isSystemAdmin,
+    isSystemProjectManager,
+    isProjectOwner,
+    isProjectMember,
+    canManageProjectBoards,
+    canCoordinateProjectTasks,
     createProject,
     listProjectsForUser,
     updateProject,

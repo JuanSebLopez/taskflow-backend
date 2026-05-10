@@ -1,4 +1,9 @@
-const { collectObjectId, collectRequiredString } = require('./common.validator');
+const {
+    collectAllowedFields,
+    collectObjectId,
+    collectRequiredAtLeastOneField,
+    collectRequiredString
+} = require('./common.validator');
 
 function validateProjectIdParam(params) {
     const error = collectObjectId(params, 'projectId', 'project id');
@@ -6,16 +11,24 @@ function validateProjectIdParam(params) {
 }
 
 function validateBoardCreate(body) {
+    const errors = [
+        ...collectAllowedFields(body, ['name']),
+        ...collectRequiredAtLeastOneField(body, ['name'], 'name is required')
+    ];
+
     if (body.name !== undefined && collectRequiredString(body, 'name', 'name')) {
-        return ['name cannot be empty'];
+        errors.push('name cannot be empty');
     }
 
-    return [];
+    return errors;
 }
 
 function validateCreateColumn(body) {
+    const errors = [
+        ...collectAllowedFields(body, ['title', 'wipLimit']),
+        ...collectRequiredAtLeastOneField(body, ['title', 'wipLimit'], 'title is required')
+    ];
     const titleError = collectRequiredString(body, 'title', 'title');
-    const errors = [];
 
     if (titleError) {
         errors.push(titleError);
@@ -29,7 +42,10 @@ function validateCreateColumn(body) {
 }
 
 function validateUpdateColumn(body) {
-    const errors = [];
+    const errors = [
+        ...collectAllowedFields(body, ['title', 'wipLimit', 'order']),
+        ...collectRequiredAtLeastOneField(body, ['title', 'wipLimit', 'order'], 'At least one column field must be provided')
+    ];
 
     if (body.title !== undefined && collectRequiredString(body, 'title', 'title')) {
         errors.push('title cannot be empty');
@@ -63,11 +79,12 @@ function validateColumnParams(params) {
 }
 
 function validateReorderColumns(body) {
-    if (!Array.isArray(body.columns) || body.columns.length === 0) {
-        return ['columns must be a non-empty array'];
-    }
+    const errors = collectAllowedFields(body, ['columns']);
 
-    const errors = [];
+    if (!Array.isArray(body.columns) || body.columns.length === 0) {
+        errors.push('columns must be a non-empty array');
+        return errors;
+    }
 
     body.columns.forEach((column, index) => {
         if (!column.columnId) {
