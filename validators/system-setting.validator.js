@@ -1,7 +1,12 @@
 const { APP_THEMES } = require('../utils/constants');
+const { collectAllowedFields, collectRequiredAtLeastOneField, isPlainObject } = require('./common.validator');
 
 function validateSystemSettingUpdate(body) {
-    const errors = [];
+    const allowedRootFields = ['platformName', 'defaultTheme', 'availableThemes', 'maxAttachmentSizeMb', 'passwordPolicy'];
+    const errors = [
+        ...collectAllowedFields(body, allowedRootFields),
+        ...collectRequiredAtLeastOneField(body, allowedRootFields, 'At least one system setting field must be provided')
+    ];
 
     if (body.platformName !== undefined && (typeof body.platformName !== 'string' || !body.platformName.trim())) {
         errors.push('platformName must be a non-empty string');
@@ -33,6 +38,12 @@ function validateSystemSettingUpdate(body) {
         if (typeof policy !== 'object' || policy === null || Array.isArray(policy)) {
             errors.push('passwordPolicy must be an object');
         } else {
+            Object.keys(policy).forEach((field) => {
+                if (!['minLength', 'requireUppercase', 'requireNumber', 'requireSpecialChar'].includes(field)) {
+                    errors.push(`passwordPolicy.${field} is not allowed`);
+                }
+            });
+
             if (policy.minLength !== undefined && (!Number.isInteger(policy.minLength) || policy.minLength < 6)) {
                 errors.push('passwordPolicy.minLength must be an integer greater than or equal to 6');
             }
@@ -49,7 +60,11 @@ function validateSystemSettingUpdate(body) {
 }
 
 function validateSystemTestEmail(body) {
-    const errors = [];
+    if (!isPlainObject(body)) {
+        return ['body must be an object'];
+    }
+
+    const errors = collectAllowedFields(body, ['email', 'fullName']);
 
     if (body.email !== undefined && (typeof body.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email))) {
         errors.push('email must be valid');

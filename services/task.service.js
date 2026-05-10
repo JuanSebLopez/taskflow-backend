@@ -7,7 +7,13 @@ const TaskBuilder = require('../builders/task.builder');
 const taskFactory = require('../factories/task.factory');
 const { createAuditLog } = require('./audit-log.service');
 const { notifyMany } = require('./notification.service');
-const { ensureProjectAccess, ensureProjectWritable } = require('./project.service');
+const { canCoordinateProjectTasks, ensureProjectAccess, ensureProjectWritable } = require('./project.service');
+
+function ensureTaskCoordinationAccess(project, currentUser) {
+    if (!canCoordinateProjectTasks(project, currentUser)) {
+        throw new AppError('Only the project owner, a PROJECT_MANAGER member, or ADMIN can coordinate assignees and workflow settings', 403);
+    }
+}
 
 async function ensureBoardAndColumn(projectId, boardId, columnId) {
     const board = await Board.findOne({ _id: boardId, project: projectId });
@@ -277,6 +283,7 @@ async function updateTask(taskId, payload, currentUser) {
     }
 
     if (payload.assignees) {
+        ensureTaskCoordinationAccess(project, currentUser);
         await validateAssignees(project, payload.assignees);
         task.assignees = payload.assignees;
     }
@@ -313,6 +320,7 @@ async function assignTaskMembers(taskId, payload, currentUser) {
     }
 
     const project = await ensureProjectWritable(task.project, currentUser);
+    ensureTaskCoordinationAccess(project, currentUser);
     await validateAssignees(project, payload.assignees);
 
     task.assignees = payload.assignees;

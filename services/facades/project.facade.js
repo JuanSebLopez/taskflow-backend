@@ -8,6 +8,8 @@ const {
     archiveProject,
     cloneProject,
     createProject,
+    isSystemAdmin,
+    isProjectOwner,
     ensureProjectAccess,
     listProjectsForUser,
     updateProject
@@ -44,7 +46,7 @@ class ProjectFacade {
 
     async deleteProjectWorkspace(projectId, currentUser) {
         const project = await ensureProjectAccess(projectId, currentUser);
-        const canDelete = currentUser.role === 'ADMIN' || project.owner.toString() === currentUser._id.toString();
+        const canDelete = isSystemAdmin(currentUser) || isProjectOwner(project, currentUser);
 
         if (!canDelete) {
             throw new AppError('Only the owner or ADMIN can delete the project', 403);

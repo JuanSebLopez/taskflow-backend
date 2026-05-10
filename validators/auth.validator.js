@@ -1,8 +1,14 @@
 const { APP_THEMES } = require('../utils/constants');
-const { isNonEmptyString, isValidEmail, collectRequiredString } = require('./common.validator');
+const {
+    collectAllowedFields,
+    collectRequiredAtLeastOneField,
+    collectRequiredString,
+    isNonEmptyString,
+    isValidEmail
+} = require('./common.validator');
 
 function validateRegister(body) {
-    const errors = [];
+    const errors = collectAllowedFields(body, ['fullName', 'email', 'password']);
     const fullNameError = collectRequiredString(body, 'fullName', 'fullName');
 
     if (fullNameError) {
@@ -21,7 +27,7 @@ function validateRegister(body) {
 }
 
 function validateLogin(body) {
-    const errors = [];
+    const errors = collectAllowedFields(body, ['email', 'password']);
 
     if (!isValidEmail(body.email)) {
         errors.push('email must be valid');
@@ -35,7 +41,7 @@ function validateLogin(body) {
 }
 
 function validateVerifyEmail(body) {
-    const errors = [];
+    const errors = collectAllowedFields(body, ['email', 'token']);
 
     if (!isValidEmail(body.email)) {
         errors.push('email must be valid');
@@ -49,15 +55,37 @@ function validateVerifyEmail(body) {
 }
 
 function validateResendVerification(body) {
-    return isValidEmail(body.email) ? [] : ['email must be valid'];
+    const errors = [
+        ...collectAllowedFields(body, ['email']),
+        ...collectRequiredAtLeastOneField(body, ['email'], 'email is required')
+    ];
+
+    if (!isValidEmail(body.email)) {
+        errors.push('email must be valid');
+    }
+
+    return errors;
 }
 
 function validateRefreshToken(body) {
-    return isNonEmptyString(body.refreshToken) ? [] : ['refreshToken is required'];
+    const errors = [
+        ...collectAllowedFields(body, ['refreshToken']),
+        ...collectRequiredAtLeastOneField(body, ['refreshToken'], 'refreshToken is required')
+    ];
+
+    if (!isNonEmptyString(body.refreshToken)) {
+        errors.push('refreshToken is required');
+    }
+
+    return errors;
 }
 
 function validateProfileUpdate(body) {
-    const errors = [];
+    const allowedRootFields = ['fullName', 'avatarUrl', 'bio', 'theme', 'notificationPreferences'];
+    const errors = [
+        ...collectAllowedFields(body, allowedRootFields),
+        ...collectRequiredAtLeastOneField(body, allowedRootFields, 'At least one profile field must be provided')
+    ];
 
     if (body.fullName !== undefined && !isNonEmptyString(body.fullName)) {
         errors.push('fullName cannot be empty');
@@ -93,6 +121,12 @@ function validateProfileUpdate(body) {
                     errors.push(`notificationPreferences.${channel} must be an object`);
                     return;
                 }
+
+                Object.keys(value).forEach((key) => {
+                    if (!keys.includes(key)) {
+                        errors.push(`notificationPreferences.${channel}.${key} is not allowed`);
+                    }
+                });
 
                 keys.forEach((key) => {
                     if (value[key] !== undefined && typeof value[key] !== 'boolean') {
