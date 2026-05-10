@@ -58,7 +58,10 @@ async function upsertDemoUsers() {
                     role: demoUser.role,
                     bio: demoUser.bio,
                     avatarUrl: '',
-                    isActive: true
+                    isActive: true,
+                    isEmailVerified: true,
+                    emailVerificationTokenHash: null,
+                    emailVerificationExpiresAt: null
                 },
                 $setOnInsert: {
                     password

@@ -4,12 +4,25 @@ services:
     container_name: taskflow-backend
     ports:
       - "3000:3000"
+    volumes:
+      - ./uploads:/app/uploads
     environment:
       PORT: 3000
       MONGO_URI: mongodb://mongo:27017/taskflow
       JWT_SECRET: taskflow_docker_secret
+      ACCESS_TOKEN_TTL: 15m
+      REFRESH_TOKEN_TTL: 7d
       NODE_ENV: production
       SEED_DATA: "true"
+      EMAIL_ENABLED: "false"
+      BREVO_SMTP_HOST: smtp-relay.sendinblue.com
+      BREVO_SMTP_PORT: 587
+      BREVO_SMTP_USER: ""
+      BREVO_SMTP_PASS: ""
+      MAIL_FROM_EMAIL: ""
+      MAIL_FROM_NAME: TaskFlow
+      MAIL_REPLY_TO: ""
+      FRONTEND_VERIFY_EMAIL_URL: http://localhost:3001/verify-email
     depends_on:
       - mongo
 
