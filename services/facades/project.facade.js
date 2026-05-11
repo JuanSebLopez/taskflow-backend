@@ -25,7 +25,10 @@ class ProjectFacade {
     }
 
     async getProjectDetails(projectId, currentUser) {
-        return ensureProjectAccess(projectId, currentUser);
+        const project = await ensureProjectAccess(projectId, currentUser);
+        await project.populate('owner', 'fullName email');
+        await project.populate('members.user', 'fullName email');
+        return project;
     }
 
     async updateProjectDetails(projectId, payload, currentUser) {
