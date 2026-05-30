@@ -120,7 +120,7 @@ const timeLog = catchAsync(async (req, res) => {
     const task = await taskFacade.addTaskTimeLog(req.params.id, req.body, req.user);
     res.json({
         message: 'Time log added successfully',
-        task: serializeTaskMutation(task)
+        task: serializeTask(task)
     });
 });
 
