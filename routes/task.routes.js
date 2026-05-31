@@ -397,6 +397,7 @@ router.delete('/:id/comments/:commentId', validate({ params: validateCommentPara
  *         description: Archivos adjuntados
  */
 router.post('/:id/attachments', validate({ params: validateTaskId }), upload.array('files', 5), handleUploadErrors, controller.uploadAttachments);
+router.get('/:id/attachments/:attachmentId/download', validate({ params: validateAttachmentParams }), controller.downloadAttachment);
 /**
  * @swagger
  * /api/tasks/{id}/attachments/{attachmentId}:

@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { PROJECT_STATUSES } = require('../utils/constants');
+const { PROJECT_MEMBER_ROLES, PROJECT_STATUSES } = require('../utils/constants');
 
 const ProjectMemberSchema = new mongoose.Schema(
     {
@@ -10,6 +10,7 @@ const ProjectMemberSchema = new mongoose.Schema(
         },
         role: {
             type: String,
+            enum: PROJECT_MEMBER_ROLES,
             default: 'MEMBER'
         },
         invitedAt: {

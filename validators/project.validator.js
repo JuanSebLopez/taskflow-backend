@@ -1,4 +1,4 @@
-const { PROJECT_STATUSES } = require('../utils/constants');
+const { PROJECT_MEMBER_ROLES, PROJECT_STATUSES } = require('../utils/constants');
 const {
     collectAllowedFields,
     collectDateRange,
@@ -61,9 +61,34 @@ function validateProjectMember(body) {
     return isValidEmail(body.email) ? [] : ['email must be valid'];
 }
 
+function validateProjectMemberParams(params) {
+    const errors = [];
+    const projectIdError = collectObjectId(params, 'id', 'project id');
+    const userIdError = collectObjectId(params, 'userId', 'user id');
+
+    [projectIdError, userIdError].filter(Boolean).forEach((error) => errors.push(error));
+    return errors;
+}
+
+function validateProjectMemberRole(body) {
+    const manageableRoles = PROJECT_MEMBER_ROLES.filter((role) => role !== 'OWNER');
+    const errors = [
+        ...collectAllowedFields(body, ['role']),
+        ...collectRequiredAtLeastOneField(body, ['role'], 'role is required')
+    ];
+
+    if (body.role !== undefined && !manageableRoles.includes(body.role)) {
+        errors.push(`role must be one of: ${manageableRoles.join(', ')}`);
+    }
+
+    return errors;
+}
+
 module.exports = {
     validateProjectCreate,
     validateProjectUpdate,
     validateProjectId,
-    validateProjectMember
+    validateProjectMember,
+    validateProjectMemberParams,
+    validateProjectMemberRole
 };

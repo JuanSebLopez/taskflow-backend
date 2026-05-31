@@ -1,4 +1,5 @@
 const Board = require('../models/board');
+const Notification = require('../models/notification');
 const Project = require('../models/project');
 const Task = require('../models/task');
 const User = require('../models/user');
@@ -23,8 +24,28 @@ function isProjectMember(project, user) {
     return project.members.some((member) => member.user.toString() === user._id.toString());
 }
 
+function getProjectMembership(project, user) {
+    return project.members.find((member) => member.user.toString() === user._id.toString());
+}
+
+function getProjectMemberRole(project, user) {
+    if (isProjectOwner(project, user)) {
+        return 'OWNER';
+    }
+
+    return getProjectMembership(project, user)?.role || null;
+}
+
+function canManageProjectMembers(project, user) {
+    return isSystemAdmin(user) || isProjectOwner(project, user);
+}
+
 function canManageProjectBoards(project, user) {
-    return isSystemAdmin(user) || isProjectOwner(project, user) || (isSystemProjectManager(user) && isProjectMember(project, user));
+    const projectRole = getProjectMemberRole(project, user);
+    return isSystemAdmin(user)
+        || projectRole === 'OWNER'
+        || projectRole === 'MANAGER'
+        || (isSystemProjectManager(user) && isProjectMember(project, user));
 }
 
 function canCoordinateProjectTasks(project, user) {
@@ -92,6 +113,32 @@ async function createProject(payload, currentUser) {
     return project;
 }
 
+async function calculateProjectProgress(projectId) {
+    const [tasks, boards] = await Promise.all([
+        Task.find({ project: projectId }).select('columnId'),
+        Board.find({ project: projectId }).select('columns')
+    ]);
+
+    const completedColumnIds = new Set();
+    boards.forEach((board) => {
+        board.columns
+            .filter((column) => column.title.toLowerCase().includes('complet'))
+            .forEach((column) => completedColumnIds.add(column._id.toString()));
+    });
+
+    const total = tasks.length;
+    const completed = tasks.filter((task) => completedColumnIds.has(task.columnId.toString())).length;
+
+    return total ? Math.round((completed / total) * 100) : 0;
+}
+
+async function attachProjectProgress(project) {
+    return {
+        ...project.toObject(),
+        progress: await calculateProjectProgress(project._id)
+    };
+}
+
 async function listProjectsForUser(currentUser) {
     const filter = currentUser.role === 'ADMIN'
         ? {}
@@ -106,20 +153,7 @@ async function listProjectsForUser(currentUser) {
     const result = [];
 
     for (const project of projects) {
-        const tasks = await Task.find({ project: project._id });
-        const doneBoard = await Board.findOne({ project: project._id, isDefault: true });
-        const doneColumnIds = doneBoard
-            ? doneBoard.columns
-                  .filter((column) => column.title.toLowerCase().includes('complet'))
-                  .map((column) => column._id.toString())
-            : [];
-        const total = tasks.length;
-        const completed = tasks.filter((task) => doneColumnIds.includes(task.columnId.toString())).length;
-
-        result.push({
-            ...project.toObject(),
-            progress: total ? Math.round((completed / total) * 100) : 0
-        });
+        result.push(await attachProjectProgress(project));
     }
 
     return result;
@@ -179,10 +213,9 @@ async function archiveProject(projectId, currentUser) {
 }
 
 async function addProjectMember(projectId, email, currentUser) {
-    const project = await ensureProjectAccess(projectId, currentUser);
-    const canManageMembers = isSystemAdmin(currentUser) || isProjectOwner(project, currentUser);
+    const project = await ensureProjectWritable(projectId, currentUser);
 
-    if (!canManageMembers) {
+    if (!canManageProjectMembers(project, currentUser)) {
         throw new AppError('Only the owner or ADMIN can invite members', 403);
     }
 
@@ -198,12 +231,20 @@ async function addProjectMember(projectId, email, currentUser) {
         throw new AppError('User is already part of the project', 409);
     }
 
-    project.members.push({ user: invitedUser._id, role: 'MEMBER', invitedAt: new Date() });
-    await project.save();
+    const pendingInvitation = await Notification.findOne({
+        recipient: invitedUser._id,
+        type: 'PROJECT_MEMBER_ADDED',
+        relatedProject: project._id,
+        'metadata.invitationStatus': 'PENDING'
+    });
+
+    if (pendingInvitation) {
+        throw new AppError('User already has a pending invitation for this project', 409);
+    }
 
     await createAuditLog({
         module: 'PROJECTS',
-        action: 'PROJECT_MEMBER_ADDED',
+        action: 'PROJECT_MEMBER_INVITED',
         actor: currentUser._id,
         project: project._id,
         resourceType: 'Project',
@@ -217,12 +258,86 @@ async function addProjectMember(projectId, email, currentUser) {
         recipient: invitedUser._id,
         type: 'PROJECT_MEMBER_ADDED',
         title: 'Invitacion a proyecto',
-        message: `Ahora eres miembro del proyecto "${project.name}"`,
+        message: `Te invitaron a unirte al proyecto "${project.name}"`,
         relatedProject: project._id,
+        forceInApp: true,
         metadata: {
             projectId: project._id.toString(),
-            invitedBy: currentUser._id.toString()
+            invitedBy: currentUser._id.toString(),
+            invitationStatus: 'PENDING',
+            invitedAt: new Date().toISOString()
         }
+    });
+
+    return project;
+}
+
+async function updateProjectMemberRole(projectId, userId, role, currentUser) {
+    const project = await ensureProjectWritable(projectId, currentUser);
+
+    if (!canManageProjectMembers(project, currentUser)) {
+        throw new AppError('Only the owner or ADMIN can manage project members', 403);
+    }
+
+    if (project.owner.toString() === userId.toString()) {
+        throw new AppError('Project owner role cannot be changed', 400);
+    }
+
+    const member = project.members.find((item) => item.user.toString() === userId.toString());
+
+    if (!member) {
+        throw new AppError('Project member not found', 404);
+    }
+
+    if (member.role === 'OWNER') {
+        throw new AppError('Owner membership cannot be changed', 400);
+    }
+
+    const previousRole = member.role;
+    member.role = role;
+    await project.save();
+
+    await createAuditLog({
+        module: 'PROJECTS',
+        action: 'PROJECT_MEMBER_ROLE_UPDATED',
+        actor: currentUser._id,
+        project: project._id,
+        resourceType: 'Project',
+        resourceId: project._id.toString(),
+        metadata: { userId: userId.toString(), previousRole, currentRole: role }
+    });
+
+    return project;
+}
+
+async function removeProjectMember(projectId, userId, currentUser) {
+    const project = await ensureProjectWritable(projectId, currentUser);
+
+    if (!canManageProjectMembers(project, currentUser)) {
+        throw new AppError('Only the owner or ADMIN can manage project members', 403);
+    }
+
+    if (project.owner.toString() === userId.toString()) {
+        throw new AppError('Project owner cannot be removed', 400);
+    }
+
+    const memberIndex = project.members.findIndex((item) => item.user.toString() === userId.toString());
+
+    if (memberIndex === -1) {
+        throw new AppError('Project member not found', 404);
+    }
+
+    const [removedMember] = project.members.splice(memberIndex, 1);
+    await project.save();
+
+    await createAuditLog({
+        module: 'PROJECTS',
+        action: 'PROJECT_MEMBER_REMOVED',
+        actor: currentUser._id,
+        project: project._id,
+        resourceType: 'Project',
+        resourceId: project._id.toString(),
+        metadata: { userId: userId.toString(), previousRole: removedMember.role }
     });
 
     return project;
@@ -264,12 +379,18 @@ module.exports = {
     isSystemProjectManager,
     isProjectOwner,
     isProjectMember,
+    getProjectMemberRole,
+    canManageProjectMembers,
     canManageProjectBoards,
     canCoordinateProjectTasks,
+    attachProjectProgress,
+    calculateProjectProgress,
     createProject,
     listProjectsForUser,
     updateProject,
     archiveProject,
     addProjectMember,
+    updateProjectMemberRole,
+    removeProjectMember,
     cloneProject
 };

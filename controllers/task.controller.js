@@ -116,6 +116,11 @@ const removeAttachment = catchAsync(async (req, res) => {
     });
 });
 
+const downloadAttachment = catchAsync(async (req, res) => {
+    const { absolutePath, attachment } = await taskFacade.getTaskAttachmentFile(req.params.id, req.params.attachmentId, req.user);
+    res.download(absolutePath, attachment.originalName);
+});
+
 const timeLog = catchAsync(async (req, res) => {
     const task = await taskFacade.addTaskTimeLog(req.params.id, req.body, req.user);
     res.json({
@@ -140,5 +145,6 @@ module.exports = {
     removeComment,
     uploadAttachments,
     removeAttachment,
+    downloadAttachment,
     timeLog
 };

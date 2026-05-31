@@ -6,6 +6,8 @@ const {
     validateProjectCreate,
     validateProjectId,
     validateProjectMember,
+    validateProjectMemberParams,
+    validateProjectMemberRole,
     validateProjectUpdate
 } = require('../validators/project.validator');
 
@@ -125,6 +127,16 @@ router.delete('/:id', validate({ params: validateProjectId }), controller.remove
  *         description: Miembro agregado
  */
 router.post('/:id/members', validate({ params: validateProjectId, body: validateProjectMember }), controller.addMember);
+router.patch(
+    '/:id/members/:userId',
+    validate({ params: validateProjectMemberParams, body: validateProjectMemberRole }),
+    controller.updateMemberRole
+);
+router.delete(
+    '/:id/members/:userId',
+    validate({ params: validateProjectMemberParams }),
+    controller.removeMember
+);
 /**
  * @swagger
  * /api/projects/{id}/archive:

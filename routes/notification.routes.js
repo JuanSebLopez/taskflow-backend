@@ -2,7 +2,11 @@ const express = require('express');
 const controller = require('../controllers/notification.controller');
 const { protect } = require('../middlewares/auth.middleware');
 const validate = require('../middlewares/validate.middleware');
-const { validateNotificationId, validateNotificationListQuery } = require('../validators/notification.validator');
+const {
+    validateNotificationId,
+    validateNotificationListQuery,
+    validateProjectInvitationResponse
+} = require('../validators/notification.validator');
 
 const router = express.Router();
 
@@ -43,6 +47,40 @@ router.get('/', validate({ query: validateNotificationListQuery }), controller.l
  *         description: Notificaciones marcadas como leidas
  */
 router.patch('/read-all', controller.markAllRead);
+/**
+ * @swagger
+ * /api/notifications/{id}/project-invitation:
+ *   patch:
+ *     summary: Aceptar o rechazar una invitacion a proyecto
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [response]
+ *             properties:
+ *               response:
+ *                 type: string
+ *                 enum: [ACCEPTED, DECLINED]
+ *     responses:
+ *       200:
+ *         description: Invitacion respondida
+ */
+router.patch(
+    '/:id/project-invitation',
+    validate({ params: validateNotificationId, body: validateProjectInvitationResponse }),
+    controller.respondProjectInvitation
+);
 /**
  * @swagger
  * /api/notifications/{id}/read:
