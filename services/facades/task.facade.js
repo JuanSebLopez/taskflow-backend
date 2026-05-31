@@ -9,6 +9,7 @@ const {
     deleteAttachment,
     deleteComment,
     deleteSubtask,
+    getAttachmentFile,
     getTask,
     listTasks,
     moveTask,
@@ -76,6 +77,10 @@ class TaskFacade {
 
     async removeTaskAttachment(taskId, attachmentId, currentUser) {
         return deleteAttachment(taskId, attachmentId, currentUser);
+    }
+
+    async getTaskAttachmentFile(taskId, attachmentId, currentUser) {
+        return getAttachmentFile(taskId, attachmentId, currentUser);
     }
 
     async addTaskTimeLog(taskId, payload, currentUser) {

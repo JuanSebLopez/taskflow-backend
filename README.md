@@ -172,6 +172,12 @@ Tasks:
 - `DELETE /api/tasks/:id/comments/:commentId`
 - `POST /api/tasks/:id/time-logs`
 
+Notifications:
+- `GET /api/notifications`
+- `PATCH /api/notifications/:id/read`
+- `PATCH /api/notifications/read-all`
+- `PATCH /api/notifications/:id/project-invitation`
+
 ## Guia de pruebas
 
 Base URL:

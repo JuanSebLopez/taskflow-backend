@@ -1,6 +1,8 @@
 const Notification = require('../models/notification');
+const Project = require('../models/project');
 const User = require('../models/user');
 const AppError = require('../utils/app-error');
+const { createAuditLog } = require('./audit-log.service');
 const { sendNotificationEmail, getEmailServiceStatus } = require('./email.service');
 
 const NOTIFICATION_PREFERENCE_KEYS = {
@@ -30,7 +32,7 @@ async function createNotification(payload) {
 
     let createdNotification = null;
 
-    if (shouldSendNotification(recipient, payload.type, 'inApp')) {
+    if (payload.forceInApp || shouldSendNotification(recipient, payload.type, 'inApp')) {
         createdNotification = await Notification.create({
             recipient: recipient._id,
             type: payload.type,
@@ -115,10 +117,66 @@ async function markAllNotificationsAsRead(currentUser) {
     );
 }
 
+async function respondToProjectInvitation(notificationId, response, currentUser) {
+    const notification = await Notification.findOne({
+        _id: notificationId,
+        recipient: currentUser._id,
+        type: 'PROJECT_MEMBER_ADDED',
+        'metadata.invitationStatus': 'PENDING'
+    });
+
+    if (!notification) {
+        throw new AppError('Pending project invitation not found', 404);
+    }
+
+    const project = await Project.findById(notification.relatedProject);
+
+    if (!project) {
+        throw new AppError('Project not found', 404);
+    }
+
+    if (response === 'ACCEPTED' && (project.isArchived || project.status === 'ARCHIVADO')) {
+        throw new AppError('Archived projects are read-only', 400);
+    }
+
+    const alreadyMember = project.members.some((member) => member.user.toString() === currentUser._id.toString());
+    const invitationStatus = response === 'ACCEPTED' ? 'ACCEPTED' : 'DECLINED';
+
+    if (response === 'ACCEPTED' && !alreadyMember) {
+        project.members.push({ user: currentUser._id, role: 'MEMBER', invitedAt: new Date() });
+        await project.save();
+    }
+
+    notification.metadata = {
+        ...(notification.metadata || {}),
+        invitationStatus,
+        respondedAt: new Date().toISOString()
+    };
+    notification.isRead = true;
+    notification.readAt = new Date();
+    await notification.save();
+
+    await createAuditLog({
+        module: 'PROJECTS',
+        action: response === 'ACCEPTED' ? 'PROJECT_MEMBER_INVITATION_ACCEPTED' : 'PROJECT_MEMBER_INVITATION_DECLINED',
+        actor: currentUser._id,
+        project: project._id,
+        resourceType: 'Project',
+        resourceId: project._id.toString(),
+        metadata: {
+            invitationNotificationId: notification._id.toString(),
+            userId: currentUser._id.toString()
+        }
+    });
+
+    return notification.populate('relatedProject', 'name status');
+}
+
 module.exports = {
     createNotification,
     notifyMany,
     listNotifications,
     markNotificationAsRead,
-    markAllNotificationsAsRead
+    markAllNotificationsAsRead,
+    respondToProjectInvitation
 };

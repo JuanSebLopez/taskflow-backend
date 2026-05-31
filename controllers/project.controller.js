@@ -36,7 +36,23 @@ const remove = catchAsync(async (req, res) => {
 const addMember = catchAsync(async (req, res) => {
     const project = await projectFacade.addMemberToProject(req.params.id, req.body.email, req.user);
     res.json({
-        message: 'Project member added successfully',
+        message: 'Project invitation sent successfully',
+        project: serializeProjectMutation(project)
+    });
+});
+
+const updateMemberRole = catchAsync(async (req, res) => {
+    const project = await projectFacade.updateProjectMemberRole(req.params.id, req.params.userId, req.body.role, req.user);
+    res.json({
+        message: 'Project member role updated successfully',
+        project: serializeProjectMutation(project)
+    });
+});
+
+const removeMember = catchAsync(async (req, res) => {
+    const project = await projectFacade.removeProjectMember(req.params.id, req.params.userId, req.user);
+    res.json({
+        message: 'Project member removed successfully',
         project: serializeProjectMutation(project)
     });
 });
@@ -64,6 +80,8 @@ module.exports = {
     update,
     remove,
     addMember,
+    updateMemberRole,
+    removeMember,
     archive,
     clone
 };

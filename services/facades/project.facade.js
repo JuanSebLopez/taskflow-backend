@@ -5,6 +5,7 @@ const AppError = require('../../utils/app-error');
 const { createAuditLog } = require('../audit-log.service');
 const {
     addProjectMember,
+    attachProjectProgress,
     archiveProject,
     cloneProject,
     createProject,
@@ -12,6 +13,8 @@ const {
     isProjectOwner,
     ensureProjectAccess,
     listProjectsForUser,
+    removeProjectMember,
+    updateProjectMemberRole,
     updateProject
 } = require('../project.service');
 
@@ -28,7 +31,7 @@ class ProjectFacade {
         const project = await ensureProjectAccess(projectId, currentUser);
         await project.populate('owner', 'fullName email');
         await project.populate('members.user', 'fullName email');
-        return project;
+        return attachProjectProgress(project);
     }
 
     async updateProjectDetails(projectId, payload, currentUser) {
@@ -41,6 +44,14 @@ class ProjectFacade {
 
     async addMemberToProject(projectId, email, currentUser) {
         return addProjectMember(projectId, email, currentUser);
+    }
+
+    async updateProjectMemberRole(projectId, userId, role, currentUser) {
+        return updateProjectMemberRole(projectId, userId, role, currentUser);
+    }
+
+    async removeProjectMember(projectId, userId, currentUser) {
+        return removeProjectMember(projectId, userId, currentUser);
     }
 
     async cloneProjectWorkspace(projectId, currentUser) {

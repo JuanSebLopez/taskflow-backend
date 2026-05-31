@@ -1,5 +1,5 @@
 const { NOTIFICATION_TYPES } = require('../utils/constants');
-const { collectAllowedFields, collectObjectId } = require('./common.validator');
+const { collectAllowedFields, collectObjectId, collectRequiredAtLeastOneField } = require('./common.validator');
 
 function validateNotificationId(params) {
     const error = collectObjectId(params, 'id', 'notification id');
@@ -20,7 +20,21 @@ function validateNotificationListQuery(query) {
     return errors;
 }
 
+function validateProjectInvitationResponse(body) {
+    const errors = [
+        ...collectAllowedFields(body, ['response']),
+        ...collectRequiredAtLeastOneField(body, ['response'], 'response is required')
+    ];
+
+    if (body.response !== undefined && !['ACCEPTED', 'DECLINED'].includes(body.response)) {
+        errors.push('response must be ACCEPTED or DECLINED');
+    }
+
+    return errors;
+}
+
 module.exports = {
     validateNotificationId,
-    validateNotificationListQuery
+    validateNotificationListQuery,
+    validateProjectInvitationResponse
 };

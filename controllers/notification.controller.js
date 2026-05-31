@@ -3,7 +3,8 @@ const { serializeNotification } = require('../serializers');
 const {
     listNotifications,
     markNotificationAsRead,
-    markAllNotificationsAsRead
+    markAllNotificationsAsRead,
+    respondToProjectInvitation
 } = require('../services/notification.service');
 
 const list = catchAsync(async (req, res) => {
@@ -21,8 +22,17 @@ const markAllRead = catchAsync(async (req, res) => {
     res.json({ message: 'Notifications marked as read' });
 });
 
+const respondProjectInvitation = catchAsync(async (req, res) => {
+    const notification = await respondToProjectInvitation(req.params.id, req.body.response, req.user);
+    res.json({
+        message: req.body.response === 'ACCEPTED' ? 'Project invitation accepted' : 'Project invitation declined',
+        notification: serializeNotification(notification)
+    });
+});
+
 module.exports = {
     list,
     markRead,
-    markAllRead
+    markAllRead,
+    respondProjectInvitation
 };

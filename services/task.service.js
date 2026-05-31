@@ -733,6 +733,34 @@ async function deleteAttachment(taskId, attachmentId, currentUser) {
     return getTask(task._id, currentUser);
 }
 
+async function getAttachmentFile(taskId, attachmentId, currentUser) {
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+        throw new AppError('Task not found', 404);
+    }
+
+    await ensureProjectAccess(task.project, currentUser);
+    const attachment = task.attachments.id(attachmentId);
+
+    if (!attachment) {
+        throw new AppError('Attachment not found', 404);
+    }
+
+    const uploadsRoot = path.resolve(__dirname, '..', 'uploads');
+    const absolutePath = path.resolve(__dirname, '..', attachment.relativePath);
+    const relativeToUploads = path.relative(uploadsRoot, absolutePath);
+
+    if (relativeToUploads.startsWith('..') || path.isAbsolute(relativeToUploads) || !fs.existsSync(absolutePath)) {
+        throw new AppError('Attachment file was not found', 404);
+    }
+
+    return {
+        absolutePath,
+        attachment
+    };
+}
+
 async function addTimeLog(taskId, payload, currentUser) {
     const task = await Task.findById(taskId);
 
@@ -781,5 +809,6 @@ module.exports = {
     deleteComment,
     addAttachments,
     deleteAttachment,
+    getAttachmentFile,
     addTimeLog
 };
