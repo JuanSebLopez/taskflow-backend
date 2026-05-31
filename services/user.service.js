@@ -3,7 +3,8 @@ const User = require('../models/user');
 const AppError = require('../utils/app-error');
 const { APP_THEMES, USER_ROLES } = require('../utils/constants');
 const { generateVerificationToken, hashToken } = require('../utils/verification-token');
-const { sendVerificationEmail } = require('./email.service');
+const eventBus = require('./events/event-bus');
+const eventTypes = require('./events/event-types');
 
 async function registerUser(payload) {
     const existingUser = await User.findOne({ email: payload.email.toLowerCase() });
@@ -23,10 +24,12 @@ async function registerUser(payload) {
         emailVerificationExpiresAt: verification.expiresAt
     });
 
-    await sendVerificationEmail({
-        email: user.email,
-        fullName: user.fullName,
-        token: verification.token
+    await eventBus.publish(eventTypes.VERIFICATION_EMAIL_SENT, {
+        emailPayload: {
+            email: user.email,
+            fullName: user.fullName,
+            token: verification.token
+        }
     });
 
     return user;
@@ -101,10 +104,12 @@ async function resendVerificationEmail(email) {
     user.emailVerificationExpiresAt = verification.expiresAt;
     await user.save();
 
-    await sendVerificationEmail({
-        email: user.email,
-        fullName: user.fullName,
-        token: verification.token
+    await eventBus.publish(eventTypes.VERIFICATION_EMAIL_REREQUESTED, {
+        emailPayload: {
+            email: user.email,
+            fullName: user.fullName,
+            token: verification.token
+        }
     });
 }
 

@@ -1,6 +1,7 @@
 const SavedTaskFilter = require('../models/saved-task-filter');
 const AppError = require('../utils/app-error');
-const { createAuditLog } = require('./audit-log.service');
+const eventBus = require('./events/event-bus');
+const eventTypes = require('./events/event-types');
 const { ensureProjectAccess } = require('./project.service');
 
 function normalizeCriteria(criteria = {}) {
@@ -34,15 +35,17 @@ async function createSavedTaskFilter(payload, currentUser) {
         criteria: normalizeCriteria(payload.criteria)
     });
 
-    await createAuditLog({
-        module: 'TASKS',
-        action: 'TASK_FILTER_SAVED',
-        actor: currentUser._id,
-        project: payload.projectId,
-        resourceType: 'SavedTaskFilter',
-        resourceId: filter._id.toString(),
-        metadata: {
-            name: filter.name
+    await eventBus.publish(eventTypes.TASK_FILTER_SAVED, {
+        auditLogEntry: {
+            module: 'TASKS',
+            action: 'TASK_FILTER_SAVED',
+            actor: currentUser._id,
+            project: payload.projectId,
+            resourceType: 'SavedTaskFilter',
+            resourceId: filter._id.toString(),
+            metadata: {
+                name: filter.name
+            }
         }
     });
 
@@ -72,15 +75,17 @@ async function deleteSavedTaskFilter(filterId, currentUser) {
     await ensureProjectAccess(filter.project, currentUser);
     await SavedTaskFilter.findByIdAndDelete(filter._id);
 
-    await createAuditLog({
-        module: 'TASKS',
-        action: 'TASK_FILTER_DELETED',
-        actor: currentUser._id,
-        project: filter.project,
-        resourceType: 'SavedTaskFilter',
-        resourceId: filter._id.toString(),
-        metadata: {
-            name: filter.name
+    await eventBus.publish(eventTypes.TASK_FILTER_DELETED, {
+        auditLogEntry: {
+            module: 'TASKS',
+            action: 'TASK_FILTER_DELETED',
+            actor: currentUser._id,
+            project: filter.project,
+            resourceType: 'SavedTaskFilter',
+            resourceId: filter._id.toString(),
+            metadata: {
+                name: filter.name
+            }
         }
     });
 }

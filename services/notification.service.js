@@ -1,7 +1,9 @@
 const Notification = require('../models/notification');
 const User = require('../models/user');
 const AppError = require('../utils/app-error');
-const { sendNotificationEmail, getEmailServiceStatus } = require('./email.service');
+const eventBus = require('./events/event-bus');
+const eventTypes = require('./events/event-types');
+const { getEmailServiceStatus } = require('./email.service');
 
 const NOTIFICATION_PREFERENCE_KEYS = {
     PROJECT_MEMBER_ADDED: 'projectMemberAdded',
@@ -44,14 +46,12 @@ async function createNotification(payload) {
     }
 
     if (shouldSendNotification(recipient, payload.type, 'email') && getEmailServiceStatus().configured) {
-        try {
-            await sendNotificationEmail({
+        await eventBus.publish(eventTypes.NOTIFICATION_EMAIL_REQUESTED, {
+            emailPayload: {
                 ...payload,
                 recipient
-            });
-        } catch (error) {
-            console.error('Failed to send notification email:', error.message);
-        }
+            }
+        });
     }
 
     return createdNotification;
