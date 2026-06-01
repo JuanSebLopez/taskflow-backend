@@ -345,6 +345,7 @@ function serializeTask(task) {
         attachments: Array.isArray(plain.attachments) ? plain.attachments.map(serializeTaskAttachment) : [],
         timeLogs: Array.isArray(plain.timeLogs) ? plain.timeLogs.map(serializeTimeLog) : [],
         history: Array.isArray(plain.history) ? plain.history.map(serializeTaskHistoryEntry) : [],
+        totalLoggedHours: Array.isArray(plain.timeLogs) ? plain.timeLogs.reduce((sum, log) => sum + (log.hours || 0), 0) : 0,
         createdAt: plain.createdAt || null,
         updatedAt: plain.updatedAt || null
     };
@@ -380,7 +381,9 @@ function serializeTaskListItem(task) {
         isOverdue: Boolean(plain.isOverdue),
         commentCount: Array.isArray(plain.comments) ? plain.comments.length : 0,
         attachmentCount: Array.isArray(plain.attachments) ? plain.attachments.length : 0,
+        timeLogs: Array.isArray(plain.timeLogs) ? plain.timeLogs.map(serializeTimeLog) : [],
         timeLogCount: Array.isArray(plain.timeLogs) ? plain.timeLogs.length : 0,
+        totalLoggedHours: Array.isArray(plain.timeLogs) ? plain.timeLogs.reduce((sum, log) => sum + (log.hours || 0), 0) : 0,
         createdAt: plain.createdAt || null,
         updatedAt: plain.updatedAt || null
     };
@@ -417,6 +420,7 @@ function serializeTaskMutation(task) {
         commentCount: Array.isArray(plain.comments) ? plain.comments.length : 0,
         attachmentCount: Array.isArray(plain.attachments) ? plain.attachments.length : 0,
         timeLogCount: Array.isArray(plain.timeLogs) ? plain.timeLogs.length : 0,
+        totalLoggedHours: Array.isArray(plain.timeLogs) ? plain.timeLogs.reduce((sum, log) => sum + (log.hours || 0), 0) : 0,
         updatedAt: plain.updatedAt || null
     };
 }

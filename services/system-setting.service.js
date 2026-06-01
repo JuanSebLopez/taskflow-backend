@@ -1,7 +1,8 @@
 const SystemSetting = require('../models/system-setting');
 const AppError = require('../utils/app-error');
 const { APP_THEMES } = require('../utils/constants');
-const { createAuditLog } = require('./audit-log.service');
+const eventBus = require('./events/event-bus');
+const eventTypes = require('./events/event-types');
 const { getEmailServiceStatus } = require('./email.service');
 
 async function ensureSettingsDocument() {
@@ -76,14 +77,16 @@ async function updateSystemSettings(payload, currentUser) {
     Object.assign(settings, updates);
     await settings.save();
 
-    await createAuditLog({
-        module: 'SETTINGS',
-        action: 'SYSTEM_SETTINGS_UPDATED',
-        actor: currentUser._id,
-        resourceType: 'SystemSetting',
-        resourceId: settings._id.toString(),
-        metadata: {
-            updatedFields: Object.keys(updates)
+    await eventBus.publish(eventTypes.SYSTEM_SETTINGS_UPDATED, {
+        auditLogEntry: {
+            module: 'SETTINGS',
+            action: 'SYSTEM_SETTINGS_UPDATED',
+            actor: currentUser._id,
+            resourceType: 'SystemSetting',
+            resourceId: settings._id.toString(),
+            metadata: {
+                updatedFields: Object.keys(updates)
+            }
         }
     });
 
