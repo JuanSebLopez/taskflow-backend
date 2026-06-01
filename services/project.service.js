@@ -5,8 +5,8 @@ const Task = require('../models/task');
 const User = require('../models/user');
 const AppError = require('../utils/app-error');
 const { DEFAULT_BOARD_COLUMNS } = require('../utils/constants');
-const { createAuditLog } = require('./audit-log.service');
-const { createNotification, notifyMany } = require('./notification.service');
+const eventBus = require('./events/event-bus');
+const eventTypes = require('./events/event-types');
 
 function isSystemAdmin(user) {
     return user.role === 'ADMIN';
@@ -97,16 +97,18 @@ async function createProject(payload, currentUser) {
         columns: DEFAULT_BOARD_COLUMNS
     });
 
-    await createAuditLog({
-        module: 'PROJECTS',
-        action: 'PROJECT_CREATED',
-        actor: currentUser._id,
-        project: project._id,
-        resourceType: 'Project',
-        resourceId: project._id.toString(),
-        metadata: {
-            name: project.name,
-            status: project.status
+    await eventBus.publish(eventTypes.PROJECT_CREATED, {
+        auditLogEntry: {
+            module: 'PROJECTS',
+            action: 'PROJECT_CREATED',
+            actor: currentUser._id,
+            project: project._id,
+            resourceType: 'Project',
+            resourceId: project._id.toString(),
+            metadata: {
+                name: project.name,
+                status: project.status
+            }
         }
     });
 
@@ -181,27 +183,39 @@ async function updateProject(projectId, payload, currentUser) {
 
     await project.save();
 
-    await createAuditLog({
-        module: 'PROJECTS',
-        action: project.status === 'ARCHIVADO' && previousStatus !== 'ARCHIVADO' ? 'PROJECT_ARCHIVED' : 'PROJECT_UPDATED',
-        actor: currentUser._id,
-        project: project._id,
-        resourceType: 'Project',
-        resourceId: project._id.toString(),
-        metadata: { updatedFields: Object.keys(payload), previousStatus, currentStatus: project.status }
-    });
-
     if (project.status === 'ARCHIVADO' && previousStatus !== 'ARCHIVADO') {
-        const memberIds = project.members.map((member) => member.user.toString()).filter(
-            (memberId) => memberId !== currentUser._id.toString()
-        );
-
-        await notifyMany(memberIds, {
-            type: 'PROJECT_ARCHIVED',
-            title: 'Proyecto archivado',
-            message: `El proyecto "${project.name}" fue archivado`,
-            relatedProject: project._id,
-            metadata: { projectId: project._id.toString() }
+        await eventBus.publish(eventTypes.PROJECT_ARCHIVED, {
+            auditLogEntry: {
+                module: 'PROJECTS',
+                action: 'PROJECT_ARCHIVED',
+                actor: currentUser._id,
+                project: project._id,
+                resourceType: 'Project',
+                resourceId: project._id.toString(),
+                metadata: { updatedFields: Object.keys(payload), previousStatus, currentStatus: project.status }
+            },
+            recipientIds: project.members.map((member) => member.user.toString()).filter(
+                (memberId) => memberId !== currentUser._id.toString()
+            ),
+            notificationPayload: {
+                type: 'PROJECT_ARCHIVED',
+                title: 'Proyecto archivado',
+                message: `El proyecto "${project.name}" fue archivado`,
+                relatedProject: project._id,
+                metadata: { projectId: project._id.toString() }
+            }
+        });
+    } else {
+        await eventBus.publish(eventTypes.PROJECT_UPDATED, {
+            auditLogEntry: {
+                module: 'PROJECTS',
+                action: 'PROJECT_UPDATED',
+                actor: currentUser._id,
+                project: project._id,
+                resourceType: 'Project',
+                resourceId: project._id.toString(),
+                metadata: { updatedFields: Object.keys(payload), previousStatus, currentStatus: project.status }
+            }
         });
     }
 
@@ -242,30 +256,32 @@ async function addProjectMember(projectId, email, currentUser) {
         throw new AppError('User already has a pending invitation for this project', 409);
     }
 
-    await createAuditLog({
-        module: 'PROJECTS',
-        action: 'PROJECT_MEMBER_INVITED',
-        actor: currentUser._id,
-        project: project._id,
-        resourceType: 'Project',
-        resourceId: project._id.toString(),
-        metadata: {
-            invitedUserId: invitedUser._id.toString(),
-            invitedEmail: invitedUser.email
-        }
-    });
-    await createNotification({
-        recipient: invitedUser._id,
-        type: 'PROJECT_MEMBER_ADDED',
-        title: 'Invitacion a proyecto',
-        message: `Te invitaron a unirte al proyecto "${project.name}"`,
-        relatedProject: project._id,
-        forceInApp: true,
-        metadata: {
-            projectId: project._id.toString(),
-            invitedBy: currentUser._id.toString(),
-            invitationStatus: 'PENDING',
-            invitedAt: new Date().toISOString()
+    await eventBus.publish(eventTypes.PROJECT_MEMBER_INVITED, {
+        auditLogEntry: {
+            module: 'PROJECTS',
+            action: 'PROJECT_MEMBER_INVITED',
+            actor: currentUser._id,
+            project: project._id,
+            resourceType: 'Project',
+            resourceId: project._id.toString(),
+            metadata: {
+                invitedUserId: invitedUser._id.toString(),
+                invitedEmail: invitedUser.email
+            }
+        },
+        notificationPayload: {
+            recipient: invitedUser._id,
+            type: 'PROJECT_MEMBER_ADDED',
+            title: 'Invitacion a proyecto',
+            message: `Te invitaron a unirte al proyecto "${project.name}"`,
+            relatedProject: project._id,
+            forceInApp: true,
+            metadata: {
+                projectId: project._id.toString(),
+                invitedBy: currentUser._id.toString(),
+                invitationStatus: 'PENDING',
+                invitedAt: new Date().toISOString()
+            }
         }
     });
 
@@ -297,14 +313,16 @@ async function updateProjectMemberRole(projectId, userId, role, currentUser) {
     member.role = role;
     await project.save();
 
-    await createAuditLog({
-        module: 'PROJECTS',
-        action: 'PROJECT_MEMBER_ROLE_UPDATED',
-        actor: currentUser._id,
-        project: project._id,
-        resourceType: 'Project',
-        resourceId: project._id.toString(),
-        metadata: { userId: userId.toString(), previousRole, currentRole: role }
+    await eventBus.publish(eventTypes.PROJECT_MEMBER_ROLE_UPDATED, {
+        auditLogEntry: {
+            module: 'PROJECTS',
+            action: 'PROJECT_MEMBER_ROLE_UPDATED',
+            actor: currentUser._id,
+            project: project._id,
+            resourceType: 'Project',
+            resourceId: project._id.toString(),
+            metadata: { userId: userId.toString(), previousRole, currentRole: role }
+        }
     });
 
     return project;
@@ -330,14 +348,16 @@ async function removeProjectMember(projectId, userId, currentUser) {
     const [removedMember] = project.members.splice(memberIndex, 1);
     await project.save();
 
-    await createAuditLog({
-        module: 'PROJECTS',
-        action: 'PROJECT_MEMBER_REMOVED',
-        actor: currentUser._id,
-        project: project._id,
-        resourceType: 'Project',
-        resourceId: project._id.toString(),
-        metadata: { userId: userId.toString(), previousRole: removedMember.role }
+    await eventBus.publish(eventTypes.PROJECT_MEMBER_REMOVED, {
+        auditLogEntry: {
+            module: 'PROJECTS',
+            action: 'PROJECT_MEMBER_REMOVED',
+            actor: currentUser._id,
+            project: project._id,
+            resourceType: 'Project',
+            resourceId: project._id.toString(),
+            metadata: { userId: userId.toString(), previousRole: removedMember.role }
+        }
     });
 
     return project;
@@ -359,14 +379,16 @@ async function cloneProject(projectId, currentUser) {
         })) : DEFAULT_BOARD_COLUMNS
     });
 
-    await createAuditLog({
-        module: 'PROJECTS',
-        action: 'PROJECT_CLONED',
-        actor: currentUser._id,
-        project: clonedProject._id,
-        resourceType: 'Project',
-        resourceId: clonedProject._id.toString(),
-        metadata: { sourceProjectId: project._id.toString() }
+    await eventBus.publish(eventTypes.PROJECT_CLONED, {
+        auditLogEntry: {
+            module: 'PROJECTS',
+            action: 'PROJECT_CLONED',
+            actor: currentUser._id,
+            project: clonedProject._id,
+            resourceType: 'Project',
+            resourceId: clonedProject._id.toString(),
+            metadata: { sourceProjectId: project._id.toString() }
+        }
     });
 
     return clonedProject;

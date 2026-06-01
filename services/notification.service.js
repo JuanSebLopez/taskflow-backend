@@ -2,8 +2,9 @@ const Notification = require('../models/notification');
 const Project = require('../models/project');
 const User = require('../models/user');
 const AppError = require('../utils/app-error');
-const { createAuditLog } = require('./audit-log.service');
-const { sendNotificationEmail, getEmailServiceStatus } = require('./email.service');
+const eventBus = require('./events/event-bus');
+const eventTypes = require('./events/event-types');
+const { getEmailServiceStatus } = require('./email.service');
 
 const NOTIFICATION_PREFERENCE_KEYS = {
     PROJECT_MEMBER_ADDED: 'projectMemberAdded',
@@ -46,14 +47,12 @@ async function createNotification(payload) {
     }
 
     if (shouldSendNotification(recipient, payload.type, 'email') && getEmailServiceStatus().configured) {
-        try {
-            await sendNotificationEmail({
+        await eventBus.publish(eventTypes.NOTIFICATION_EMAIL_REQUESTED, {
+            emailPayload: {
                 ...payload,
                 recipient
-            });
-        } catch (error) {
-            console.error('Failed to send notification email:', error.message);
-        }
+            }
+        });
     }
 
     return createdNotification;
@@ -156,18 +155,27 @@ async function respondToProjectInvitation(notificationId, response, currentUser)
     notification.readAt = new Date();
     await notification.save();
 
-    await createAuditLog({
-        module: 'PROJECTS',
-        action: response === 'ACCEPTED' ? 'PROJECT_MEMBER_INVITATION_ACCEPTED' : 'PROJECT_MEMBER_INVITATION_DECLINED',
-        actor: currentUser._id,
-        project: project._id,
-        resourceType: 'Project',
-        resourceId: project._id.toString(),
-        metadata: {
-            invitationNotificationId: notification._id.toString(),
-            userId: currentUser._id.toString()
+    await eventBus.publish(
+        response === 'ACCEPTED'
+            ? eventTypes.PROJECT_MEMBER_INVITATION_ACCEPTED
+            : eventTypes.PROJECT_MEMBER_INVITATION_DECLINED,
+        {
+            auditLogEntry: {
+                module: 'PROJECTS',
+                action: response === 'ACCEPTED'
+                    ? 'PROJECT_MEMBER_INVITATION_ACCEPTED'
+                    : 'PROJECT_MEMBER_INVITATION_DECLINED',
+                actor: currentUser._id,
+                project: project._id,
+                resourceType: 'Project',
+                resourceId: project._id.toString(),
+                metadata: {
+                    invitationNotificationId: notification._id.toString(),
+                    userId: currentUser._id.toString()
+                }
+            }
         }
-    });
+    );
 
     return notification.populate('relatedProject', 'name status');
 }

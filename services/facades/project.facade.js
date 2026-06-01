@@ -2,7 +2,8 @@ const Board = require('../../models/board');
 const Project = require('../../models/project');
 const Task = require('../../models/task');
 const AppError = require('../../utils/app-error');
-const { createAuditLog } = require('../audit-log.service');
+const eventBus = require('../events/event-bus');
+const eventTypes = require('../events/event-types');
 const {
     addProjectMember,
     attachProjectProgress,
@@ -66,16 +67,18 @@ class ProjectFacade {
             throw new AppError('Only the owner or ADMIN can delete the project', 403);
         }
 
-        await createAuditLog({
-            module: 'PROJECTS',
-            action: 'PROJECT_DELETED',
-            actor: currentUser._id,
-            project: project._id,
-            resourceType: 'Project',
-            resourceId: project._id.toString(),
-            metadata: {
-                name: project.name,
-                status: project.status
+        await eventBus.publish(eventTypes.PROJECT_DELETED, {
+            auditLogEntry: {
+                module: 'PROJECTS',
+                action: 'PROJECT_DELETED',
+                actor: currentUser._id,
+                project: project._id,
+                resourceType: 'Project',
+                resourceId: project._id.toString(),
+                metadata: {
+                    name: project.name,
+                    status: project.status
+                }
             }
         });
 
